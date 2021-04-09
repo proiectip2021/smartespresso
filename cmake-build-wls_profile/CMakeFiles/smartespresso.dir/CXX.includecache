@@ -1,0 +1,32 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/mnt/c/Users/Asus/Desktop/IP/smartespresso/smart-espressor.cpp
+algorithm
+-
+signal.h
+-
+string
+-
+pistache/net.h
+-
+pistache/http.h
+-
+pistache/peer.h
+-
+pistache/http_headers.h
+-
+pistache/cookie.h
+-
+pistache/router.h
+-
+pistache/endpoint.h
+-
+pistache/common.h
+-
+
