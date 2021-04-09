@@ -1,1 +1,0 @@
-/usr/bin/c++  -g   CMakeFiles/smartespresso.dir/smart-espressor.cpp.o CMakeFiles/smartespresso.dir/espressor.cpp.o  -o smartespresso  -lpistache -lpthread 

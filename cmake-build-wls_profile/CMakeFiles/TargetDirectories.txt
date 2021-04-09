@@ -1,3 +1,0 @@
-/mnt/c/Users/Asus/Desktop/IP/smartespresso/cmake-build-wls_profile/CMakeFiles/rebuild_cache.dir
-/mnt/c/Users/Asus/Desktop/IP/smartespresso/cmake-build-wls_profile/CMakeFiles/edit_cache.dir
-/mnt/c/Users/Asus/Desktop/IP/smartespresso/cmake-build-wls_profile/CMakeFiles/smartespresso.dir
