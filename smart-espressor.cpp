@@ -21,6 +21,7 @@
 #include <pistache/router.h>
 #include <pistache/endpoint.h>
 #include <pistache/common.h>
+#include <valarray>
 
 using namespace std;
 using namespace Pistache;
@@ -86,6 +87,36 @@ private:
         Routes::Post(router, "/settings/:settingName/:value", Routes::bind(&EspressorEndpoint::setSetting, this));
         Routes::Get(router, "/settings/:settingName/", Routes::bind(&EspressorEndpoint::getSetting, this));
 
+        // Espressor class test route
+        Routes::Get(router, "/details/:detailName/", Routes::bind(&EspressorEndpoint::getDetail, this));
+    }
+
+    // Espressor class test route function
+    void getDetail(const Rest::Request& request, Http::ResponseWriter response) {
+        auto detailName = request.param(":detailName").as<string>();
+
+        string* det;
+        det = esp.getDetails();
+
+        Guard guard(EspressorLock);
+
+        string value;
+        value = esp.getDetail(detailName);
+
+        cout << value;
+        if (value != "") {
+
+            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+            using namespace Http;
+            response.headers()
+                    .add<Header::Server>("pistache/0.1")
+                    .add<Header::ContentType>(MIME(Text, Plain));
+
+            response.send(Http::Code::Ok, detailName + " is " + value);
+        }
+        else {
+            response.send(Http::Code::Not_Found, detailName + " was not found");
+        }
     }
 
     void doAuth(const Rest::Request& request, Http::ResponseWriter response) {
@@ -155,6 +186,18 @@ private:
     public:
         explicit Espressor() = default;
 
+        string* getDetails(){
+            string details[5];
+
+            details[0] = std::to_string(espressor_details.current_milk.quant);
+            details[1] = std::to_string(espressor_details.current_coffee.quant);
+            details[2] = std::to_string(espressor_details.current_water.quant);
+            details[3] = std::to_string(espressor_details.current_coffee_filters.quant);
+            details[4] = std::to_string(espressor_details.coffees_made);
+
+            return details;
+        }
+
         // Setting the value for one of the settings. Hardcoded for the defrosting option
         int set(string name, string value){
             if(name == "defrost"){
@@ -172,11 +215,33 @@ private:
         }
 
         // Getter
-        string get(string name){
+        string get(std::string name){
             if (name == "defrost"){
                 return std::to_string(defrost.value);
             }
             else{
+                return "";
+            }
+        }
+
+        // Getter for test route function
+        string getDetail(string name){
+            if (name == "water") {
+                return std::to_string(espressor_details.current_water.quant);
+            }
+            else if (name == "coffee") {
+                return std::to_string(espressor_details.current_coffee.quant);
+            }
+            else if (name == "milk") {
+                return std::to_string(espressor_details.current_milk.quant);
+            }
+            else if (name == "numbers") {
+                return std::to_string(espressor_details.coffees_made);
+            }
+            else if (name == "filters") {
+                return std::to_string(espressor_details.current_coffee_filters.quant);
+            }
+            else {
                 return "";
             }
         }
