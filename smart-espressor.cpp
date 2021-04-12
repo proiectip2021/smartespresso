@@ -186,7 +186,7 @@ private:
     public:
         explicit Espressor() = default;
 
-        string* getDetails(){
+        string* getDetails() {
             string details[5];
 
             details[0] = std::to_string(espressor_details.current_milk.quant);
@@ -199,7 +199,7 @@ private:
         }
 
         // Setting the value for one of the settings. Hardcoded for the defrosting option
-        int set(string name, string value){
+        int set(string name, string value) {
             if(name == "defrost"){
                 defrost.name = name;
                 if(value == "true"){
@@ -215,7 +215,7 @@ private:
         }
 
         // Getter
-        string get(std::string name){
+        string get(std::string name) {
             if (name == "defrost"){
                 return std::to_string(defrost.value);
             }
@@ -225,7 +225,7 @@ private:
         }
 
         // Getter for test route function
-        string getDetail(string name){
+        string getDetail(string name) {
             if (name == "water") {
                 return std::to_string(espressor_details.current_water.quant);
             }
@@ -263,10 +263,10 @@ private:
         struct details {
             quantity current_coffee_filters = { 3 }; //number of filters
             quantity current_milk = { 200 }; // in mL
-            quantity current_water = {1.8};  // in L
-            quantity current_coffee = { 275 }; // in g
+            quantity current_water = {1800};  // in mL
+            quantity current_coffee = { 300 }; // in g
             int coffees_made = 0; // per day
-       } espressor_details;
+       } espressor_details, intial_values;
 
         struct choices {
             coffee black_coffee = {0, 50, 20, 5};
