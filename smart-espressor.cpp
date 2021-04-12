@@ -89,6 +89,9 @@ private:
 
         // Espressor class test route
         Routes::Get(router, "/details/:detailName/", Routes::bind(&EspressorEndpoint::getDetail, this));
+        // Prepare and choose your coffee route
+        Routes::Post(router, "/options/:name", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
+        Routes::Post(router, "/options/:name/:water/:milk/:coffee", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
     }
 
     // Espressor class test route function
@@ -116,6 +119,58 @@ private:
         }
         else {
             response.send(Http::Code::Not_Found, detailName + " was not found");
+        }
+    }
+
+    void chooseCoffee(const Rest::Request& request, Http::ResponseWriter response){
+        auto name = request.param(":name").as<string>();
+
+        int water = 0;
+        if (request.hasParam(":water")) {
+            auto waterValue = request.param(":water");
+            water = waterValue.as<double>();
+        } else if (name == "your_choice") {
+            response.send(Http::Code::No_Content, "You need to introduce water, milk and coffee for this option. If you don't want one of these just introduce 0.");
+        }
+
+        int milk = 0;
+        if (request.hasParam(":milk")) {
+            auto milkValue = request.param(":milk");
+            milk = milkValue.as<double>();
+        } else if (name == "your_choice") {
+            response.send(Http::Code::No_Content, "You need to introduce water, milk and coffee for this option. If you don't want one of these just introduce 0.");
+        }
+
+        int coffee = 0;
+        if (request.hasParam(":coffee")) {
+            auto coffeeValue = request.param(":coffee");
+            coffee = coffeeValue.as<double>();
+        } else if (name == "your_choice") {
+            response.send(Http::Code::No_Content, "You need to introduce water, milk and coffee for this option. If you don't want one of these just introduce 0.");
+        }
+
+        std::vector<std::string> chosenCoffee = esp.getChosenCoffee(name, milk, water, coffee);
+
+        if (chosenCoffee[0] == "not_found") {
+            response.send(Http::Code::Not_Found, "We don't have a " + name + " option in our menu.");
+        } else if (chosenCoffee[0] == "bad_request") {
+            response.send(Http::Code::Bad_Request, "You can't set water, milk or coffee for " + name + ".");
+        } else if (chosenCoffee[0] == "empty_request") {
+            response.send(Http::Code::No_Content, "Ok then! No coffee for you.");
+        } else {
+            Guard guard(EspressorLock);
+            // call decrease function and check/notice if there's any/not much water/milk/coffee left
+
+            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+            using namespace Http;
+            response.headers()
+                    .add<Header::Server>("pistache/0.1")
+                    .add<Header::ContentType>(MIME(Text, Plain));
+
+            // response.send(Http::Code::Ok, say how much time it takes)
+            // if there's any/not much water/milk/coffee left send one more response
+            // if there is enough milk, water, coffee for my order then send it
+            response.send(Http::Code::Ok, name + " -> { milk: " + chosenCoffee[0] + ", water: " + chosenCoffee[1] + ", coffee: " + chosenCoffee[2] + " }");
         }
     }
 
@@ -246,6 +301,45 @@ private:
             }
         }
 
+        std::vector<std::string> getChosenCoffee(string name, double milk, double water, double coffee) {
+            std::vector<std::string> response;
+            if (name != "your_choice") {
+                if (milk != 0 or water != 0 or coffee != 0) {
+                    response.emplace_back("bad_request");
+                } else {
+                    if (name == "black_coffee") {
+                        response.emplace_back(std::to_string(possible_choices.black_coffee.milk.quant));
+                        response.emplace_back(std::to_string(possible_choices.black_coffee.water.quant));
+                        response.emplace_back(std::to_string(possible_choices.black_coffee.coffee.quant));
+                    } else if (name == "espresso") {
+                        response.emplace_back(std::to_string(possible_choices.espresso.milk.quant));
+                        response.emplace_back(std::to_string(possible_choices.espresso.water.quant));
+                        response.emplace_back(std::to_string(possible_choices.espresso.coffee.quant));
+                    } else if (name == "cappuccino") {
+                        response.emplace_back(std::to_string(possible_choices.cappuccino.milk.quant));
+                        response.emplace_back(std::to_string(possible_choices.cappuccino.water.quant));
+                        response.emplace_back(std::to_string(possible_choices.cappuccino.coffee.quant));
+                    } else if (name == "flat_white") {
+                        response.emplace_back(std::to_string(possible_choices.flat_white.milk.quant));
+                        response.emplace_back(std::to_string(possible_choices.flat_white.water.quant));
+                        response.emplace_back(std::to_string(possible_choices.flat_white.coffee.quant));
+                    } else {
+                        response.emplace_back("not_found");
+                    }
+                }
+            } else {
+                if (milk == 0 and water == 0 and coffee == 0) {
+                    response.emplace_back("empty_request");
+                } else {
+                    response.emplace_back(std::to_string(milk));
+                    response.emplace_back(std::to_string(water));
+                    response.emplace_back(std::to_string(coffee));
+                }
+            }
+
+            return response;
+        }
+
     private:
         double boiling_water = 5; // in minutes
 
@@ -266,7 +360,7 @@ private:
             quantity current_water = {1800};  // in mL
             quantity current_coffee = { 300 }; // in g
             int coffees_made = 0; // per day
-       } espressor_details, intial_values;
+        } espressor_details, intial_values;
 
         struct choices {
             coffee black_coffee = {0, 50, 20, 5};
