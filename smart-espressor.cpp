@@ -22,6 +22,10 @@
 #include <pistache/endpoint.h>
 #include <pistache/common.h>
 #include <valarray>
+#include "json.hpp"
+
+// for convenience
+using json = nlohmann::json;
 
 using namespace std;
 using namespace Pistache;
@@ -165,12 +169,19 @@ private:
             using namespace Http;
             response.headers()
                     .add<Header::Server>("pistache/0.1")
-                    .add<Header::ContentType>(MIME(Text, Plain));
+                    .add<Header::ContentType>(MIME(Application, JsonSchemaInstance));
 
             // response.send(Http::Code::Ok, say how much time it takes)
             // if there's any/not much water/milk/coffee left send one more response
             // if there is enough milk, water, coffee for my order then send it
-            response.send(Http::Code::Ok, name + " -> { milk: " + chosenCoffee[0] + ", water: " + chosenCoffee[1] + ", coffee: " + chosenCoffee[2] + " }");
+            // create an empty structure (null)
+            json j = {
+                {"milk", chosenCoffee[0]},
+                {"water", chosenCoffee[1]},
+                {"coffee", chosenCoffee[2]}
+            };
+            std::string s = j.dump();
+            response.send(Http::Code::Ok, s);
         }
     }
 
