@@ -169,7 +169,7 @@ private:
             using namespace Http;
             response.headers()
                     .add<Header::Server>("pistache/0.1")
-                    .add<Header::ContentType>(MIME(Application, JsonSchemaInstance));
+                    .add<Header::ContentType>(MIME(Application, Json));
 
             // response.send(Http::Code::Ok, say how much time it takes)
             // if there's any/not much water/milk/coffee left send one more response
