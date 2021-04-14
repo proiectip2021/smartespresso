@@ -95,8 +95,10 @@ private:
 
         // Details routes
         Routes::Get(router, "/details/espressor", Routes::bind(&EspressorEndpoint::getEspressorDetails, this));      // Espressor details
-        Routes::Get(router, "/details/espressor/:propertyName", Routes::bind(&EspressorEndpoint::getEspressorDetails, this));      // Espressor details
-//        Routes::Get(router, "/details/coffee/:coffeeName/:propertyName", Routes::bind(&EspressorEndpoint::getCoffeeDetails, this));     // Coffee details
+        Routes::Get(router, "/details/espressor/:propertyName", Routes::bind(&EspressorEndpoint::getEspressorDetails, this));      // Espressor's property details
+
+        Routes::Get(router, "/details/coffee/:coffeeName", Routes::bind(&EspressorEndpoint::getCoffeeDetails, this));     // Explicit coffee details
+        Routes::Get(router, "/details/coffee/:coffeeName/:propertyName", Routes::bind(&EspressorEndpoint::getCoffeeDetails, this));     // Explicit coffee property details
 //        Routes::Get(router, "/details/:detailName/", Routes::bind(&EspressorEndpoint::getDetail, this));
 
         // Prepare and choose your coffee route
@@ -153,7 +155,50 @@ private:
 
     // Get one explicit coffee details method
     void getCoffeeDetails(const Rest::Request& request, Http::ResponseWriter response) {
+        string property = "nothing";
+        string coffeeName = request.param(":coffeeName").as<string>();
 
+        if (request.hasParam(":propertyName")) {
+            auto propertyName = request.param(":propertyName");
+            property = propertyName.as<string>();
+        }
+
+        std::vector<std::string> coffeeDetails = esp.getCoffee(coffeeName, property);
+
+        if (coffeeDetails[0] == "coffee_not_found") {
+            response.send(Http::Code::Not_Found, "Our espressor can not make this type of coffee...");
+        } else if (coffeeDetails[0] == "property_not_found") {
+            response.send(Http::Code::Not_Found, "The type of coffee that you requested does not have this property...");
+        } else {
+            Guard guard(EspressorLock);
+            // call decrease function and check/notice if there's any/not much water/milk/coffee left
+
+            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+            using namespace Http;
+            response.headers()
+                    .add<Header::Server>("pistache/0.1")
+                    .add<Header::ContentType>(MIME(Application, Json));
+
+            json c = {};
+
+            if (coffeeDetails.size() == 1) {
+                c = {
+                        {"1", "The quantity of " + property + " needed for " + coffeeName + " is:"},
+                        {property, coffeeDetails[0]}
+                };
+            } else {
+                c = {
+                        {"1", "The quantities needed for " + coffeeName + " are:"},
+                        {"water", coffeeDetails[0]},
+                        {"milk", coffeeDetails[1]},
+                        {"coffee", coffeeDetails[2]},
+                        {"time", coffeeDetails[3]}
+                };
+            }
+
+            std::string s = c.dump();
+            response.send(Http::Code::Ok, s);
+        }
     }
 
 
@@ -308,9 +353,10 @@ private:
 //            }
 //        }
 
-//        double roundOf(double value) {
-//            return round(value * 100) / 100;
-//        }
+        // To fix out format of string!!! ONLY 2 DECIMALS!!!
+        double roundOf(double value) {
+            return round(value * 100) / 100;
+        }
 
         // Getter for espressor details
         std::vector<std::string> getEspressor(string propertyName = "nothing") {
@@ -367,11 +413,14 @@ private:
             double milk = 0;
             double coffee = 0;
             double time = 0;
+
+            int coffeeFound = 1;
             int hasProperty = 0;
 
             if (propertyName != "nothing") {
                 hasProperty = 1;
             }
+
             if (coffeeName == "black_coffee") {
                 water = possible_choices.black_coffee.water.quant;
                 milk = possible_choices.black_coffee.milk.quant;
@@ -393,22 +442,28 @@ private:
                 coffee = possible_choices.flat_white.coffee.quant;
                 time = possible_choices.flat_white.time_needed;
             } else {
+                coffeeFound = 0;
                 response.emplace_back("coffee_not_found");
             }
 
-            response.emplace_back(std::to_string(hasProperty));
-
-            if (hasProperty == 1) {
-                if (propertyName == "water") {
-                    response.emplace_back(std::to_string(water));
-                } else if (propertyName == "milk") {
-                    response.emplace_back(std::to_string(milk));
-                } else if (propertyName == "coffee") {
-                    response.emplace_back(std::to_string(coffee));
-                } else if (propertyName == "time") {
-                    response.emplace_back(std::to_string(time));
+            if (coffeeFound == 1) {
+                if (hasProperty == 1) {
+                    if (propertyName == "water") {
+                        response.emplace_back(std::to_string(water));
+                    } else if (propertyName == "milk") {
+                        response.emplace_back(std::to_string(milk));
+                    } else if (propertyName == "coffee") {
+                        response.emplace_back(std::to_string(coffee));
+                    } else if (propertyName == "time") {
+                        response.emplace_back(std::to_string(time));
+                    } else {
+                        response.emplace_back("property_not_found");
+                    }
                 } else {
-                    response.emplace_back("property_not_found");
+                    response.emplace_back(std::to_string(water));
+                    response.emplace_back(std::to_string(milk));
+                    response.emplace_back(std::to_string(coffee));
+                    response.emplace_back(std::to_string(time));
                 }
             }
 
