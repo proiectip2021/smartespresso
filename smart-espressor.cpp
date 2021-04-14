@@ -94,16 +94,138 @@ private:
 //        Routes::Get(router, "/settings/:settingName/", Routes::bind(&EspressorEndpoint::getSetting, this));
 
         // Details routes
+        Routes::Get(router, "/details", Routes::bind(&EspressorEndpoint::getDetails, this));      // One common route (the other two combined)
+
         Routes::Get(router, "/details/espressor", Routes::bind(&EspressorEndpoint::getEspressorDetails, this));      // Espressor details
-        Routes::Get(router, "/details/espressor/:propertyName", Routes::bind(&EspressorEndpoint::getEspressorDetails, this));      // Espressor property details
 
         Routes::Get(router, "/details/coffee/:coffeeName", Routes::bind(&EspressorEndpoint::getCoffeeDetails, this));     // Explicit coffee details
-        Routes::Get(router, "/details/coffee/:coffeeName/:propertyName", Routes::bind(&EspressorEndpoint::getCoffeeDetails, this));     // Explicit coffee property details
 
         // Prepare and choose your coffee route
         Routes::Post(router, "/options/:name", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
         Routes::Post(router, "/options/:name/:water/:milk/:coffee", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
     }
+
+    // One common route function for details about both espressor and explicit coffee
+    void getDetails(const Rest::Request& request, Http::ResponseWriter response) {
+        string about = "";
+        string coffeeName = "";
+        string property = "";
+
+        if (!request.body().empty()) {
+            auto reqBody = json::parse(request.body());
+
+            if (reqBody.contains("about")) {
+                about = reqBody.value("about", "nothing");
+
+                if (about == "espressor") {
+
+                    if ((reqBody.size() == 2 && !reqBody.contains("property")) || reqBody.size() > 2) {
+                        response.send(Http::Code::Bad_Request, "Your request contains unnecessary properties. Check again!");
+                    }
+
+                    property = reqBody.value("property", "nothing");
+
+                    std::vector<std::string> espressorDetails = esp.getEspressor(property);
+
+                    if (espressorDetails[0] == "property_not_found") {
+                        response.send(Http::Code::Not_Found, "Our espressor does not have a '" + property + "' property.");
+                    }
+                    else {
+                        Guard guard(EspressorLock);
+                        // call decrease function and check/notice if there's any/not much water/milk/coffee left
+
+                        // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+                        using namespace Http;
+                        response.headers()
+                                .add<Header::Server>("pistache/0.1")
+                                .add<Header::ContentType>(MIME(Application, Json));
+
+                        json e = {};
+
+                        if (espressorDetails.size() == 1) {
+                            e = {
+                                    {"1",      "Espressor's " + property + ":"},
+                                    {property, espressorDetails[0]}
+                            };
+                        } else {
+                            e = {
+                                    {"1",                  "Espressor current quantities:"},
+                                    {"water",              espressorDetails[0]},
+                                    {"milk",               espressorDetails[1]},
+                                    {"coffee",             espressorDetails[2]},
+                                    {"filters_usage_rate", espressorDetails[3]},
+                                    {"coffees_made_today", espressorDetails[4]}
+                            };
+                        }
+
+                        std::string s = e.dump();
+                        response.send(Http::Code::Ok, s);
+                    }
+
+                } else if (about == "coffee") {
+
+                    if ((reqBody.size() == 3 && !reqBody.contains("property")) || reqBody.size() > 3) {
+                        response.send(Http::Code::Bad_Request, "Your request contains unnecessary properties. Check again!");
+                    }
+
+                    if (reqBody.contains("coffeeName")) {
+                        coffeeName = reqBody.value("coffeeName", "nothing");
+                    }
+                    else {
+                        response.send(Http::Code::No_Content, "You must choose one type of coffee you want details about!");
+                    }
+
+                    property = reqBody.value("property", "nothing");
+                    std::vector<std::string> coffeeDetails = esp.getCoffee(coffeeName, property);
+
+                    if (coffeeDetails[0] == "coffee_not_found") {
+                        response.send(Http::Code::Not_Found, "Our espressor can not make this type of coffee...");
+                    } else if (coffeeDetails[0] == "property_not_found") {
+                        response.send(Http::Code::Not_Found, "The type of coffee that you requested does not have this property...");
+                    } else {
+                        Guard guard(EspressorLock);
+                        // call decrease function and check/notice if there's any/not much water/milk/coffee left
+
+                        // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+                        using namespace Http;
+                        response.headers()
+                                .add<Header::Server>("pistache/0.1")
+                                .add<Header::ContentType>(MIME(Application, Json));
+
+                        json c = {};
+
+                        if (coffeeDetails.size() == 1) {
+                            c = {
+                                    {"1",      "The quantity of " + property + " needed for " + coffeeName + " is:"},
+                                    {property, coffeeDetails[0]}
+                            };
+                        } else {
+                            c = {
+                                    {"1",      "The quantities needed for " + coffeeName + " are:"},
+                                    {"water",  coffeeDetails[0]},
+                                    {"milk",   coffeeDetails[1]},
+                                    {"coffee", coffeeDetails[2]},
+                                    {"time",   coffeeDetails[3]}
+                            };
+                        }
+
+                        std::string s = c.dump();
+                        response.send(Http::Code::Ok, s);
+                    }
+
+                } else {
+                    response.send(Http::Code::No_Content, "No details available about " + about + ". Choose between: espressor/coffee!");
+                }
+            }
+            else {
+                response.send(Http::Code::No_Content, "You must choose if you want details about the espressor current quantities or about one specific type of coffee!");
+            }
+        }
+        else {
+            response.send(Http::Code::No_Content, "You must choose if you want details about the espressor current quantities or about one specific type of coffee!");
+        }
+    }
+
 
     // Get current espressor quantities function
     void getEspressorDetails(const Rest::Request& request, Http::ResponseWriter response) {
