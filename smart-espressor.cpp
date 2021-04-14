@@ -10,9 +10,10 @@
  * */
 
 #include <algorithm>
-#include <signal.h>
+#include <csignal>
 #include <string>
 #include <cmath>
+#include <iomanip>
 
 #include <pistache/net.h>
 #include <pistache/http.h>
@@ -115,7 +116,7 @@ private:
         std::vector<std::string> espressorDetails = esp.getEspressor(property);
 
         if (espressorDetails[0] == "property_not_found") {
-            response.send(Http::Code::Not_Found, "Our espressor does not have a " + property + " property.");
+            response.send(Http::Code::Not_Found, "Our espressor does not have a '" + property + "' property.");
         }
         else {
             Guard guard(EspressorLock);
@@ -131,7 +132,7 @@ private:
 
             if (espressorDetails.size() == 1) {
                 e = {
-                        {"1", "Espressor " + property + " quantity"},
+                        {"1", "Espressor's " + property + ":"},
                         {property, espressorDetails[0]}
                 };
             } else {
@@ -140,8 +141,8 @@ private:
                         {"water", espressorDetails[0]},
                         {"milk", espressorDetails[1]},
                         {"coffee", espressorDetails[2]},
-                        {"filters", espressorDetails[3]},
-                        {"coffees", espressorDetails[4]}
+                        {"filters_usage_rate", espressorDetails[3]},
+                        {"coffees_made_today", espressorDetails[4]}
                 };
             }
 
@@ -307,36 +308,49 @@ private:
 //            }
 //        }
 
-        double roundOf(double value, unsigned char prec) {
-            float pow_10 = pow(10.0f, (float)prec);
-            return round(value * pow_10) / pow_10;
-        }
+//        double roundOf(double value) {
+//            return round(value * 100) / 100;
+//        }
 
         // Getter for espressor details
         std::vector<std::string> getEspressor(string propertyName = "nothing") {
             std::vector<std::string> response;
+            double water = 0;
+            double milk = 0;
+            double coffee = 0;
+            int filters = 0;
+            int coffees = 0;
 
             if (propertyName == "nothing") {
-                double water = roundOf(espressor_details.current_water.quant, 2);
-                double milk = roundOf(espressor_details.current_milk.quant, 2);
-                double coffee = roundOf(espressor_details.current_coffee.quant, 2);
+                water = espressor_details.current_water.quant;
+                milk = espressor_details.current_milk.quant;
+                coffee = espressor_details.current_coffee.quant;
+                filters = round(espressor_details.filters_usage.quant);
+                coffees = round(espressor_details.coffees_today);
+
+                cout << water << " " << milk << " " << coffee << " " << filters << " " << coffees;
 
                 response.emplace_back(std::to_string(water));
                 response.emplace_back(std::to_string(milk));
                 response.emplace_back(std::to_string(coffee));
-                response.emplace_back(std::to_string(espressor_details.current_coffee_filters.quant));
-                response.emplace_back(std::to_string(espressor_details.coffees_made));
+                response.emplace_back(std::to_string(filters));
+                response.emplace_back(std::to_string(coffees));
             } else {
                 if (propertyName == "water") {
-                    response.emplace_back(std::to_string(espressor_details.current_water.quant));
+                    water = espressor_details.current_water.quant;
+                    response.emplace_back(std::to_string(water));
                 } else if (propertyName == "milk") {
-                    response.emplace_back(std::to_string(espressor_details.current_milk.quant));
+                    milk = espressor_details.current_milk.quant;
+                    response.emplace_back(std::to_string(milk));
                 } else if (propertyName == "coffee") {
-                    response.emplace_back(std::to_string(espressor_details.current_coffee.quant));
-                } else if (propertyName == "coffee_filters") {
-                    response.emplace_back(std::to_string(espressor_details.current_coffee_filters.quant));
-                } else if (propertyName == "coffees_made") {
-                    response.emplace_back(std::to_string(espressor_details.coffees_made));
+                    coffee = espressor_details.current_coffee.quant;
+                    response.emplace_back(std::to_string(coffee));
+                } else if (propertyName == "filters_usage") {
+                    filters = round(espressor_details.filters_usage.quant);
+                    response.emplace_back(std::to_string(filters));
+                } else if (propertyName == "coffees_today") {
+                    coffees = round(espressor_details.coffees_today);
+                    response.emplace_back(std::to_string(coffees));
                 } else {
                     response.emplace_back("property_not_found");
                 }
@@ -456,11 +470,11 @@ private:
         };
 
         struct details {
-            quantity current_coffee_filters = { 3 }; //number of filters
+            quantity filters_usage = { 3 }; //number of filters
             quantity current_milk = { 200 }; // in mL
             quantity current_water = {1800};  // in mL
             quantity current_coffee = { 300 }; // in g
-            int coffees_made = 0; // per day
+            int coffees_today = 0; // per day
         } espressor_details, intial_values;
 
         struct choices {
