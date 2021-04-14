@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <signal.h>
 #include <string>
+#include <cmath>
 
 #include <pistache/net.h>
 #include <pistache/http.h>
@@ -88,43 +89,29 @@ private:
         // Generally say that when http://localhost:9080/ready is called, the handleReady function should be called.
         Routes::Get(router, "/ready", Routes::bind(&Generic::handleReady));
         Routes::Get(router, "/auth", Routes::bind(&EspressorEndpoint::doAuth, this));
-        Routes::Post(router, "/settings/:settingName/:value", Routes::bind(&EspressorEndpoint::setSetting, this));
-        Routes::Get(router, "/settings/:settingName/", Routes::bind(&EspressorEndpoint::getSetting, this));
+//        Routes::Post(router, "/settings/:settingName/:value", Routes::bind(&EspressorEndpoint::setSetting, this));
+//        Routes::Get(router, "/settings/:settingName/", Routes::bind(&EspressorEndpoint::getSetting, this));
 
-        // Espressor class test route
+        // Details routes
+        Routes::Get(router, "/details/espressor/:propertyName/", Routes::bind(&EspressorEndpoint::getEspressorDetails, this));      // Espressor details
+        Routes::Get(router, "/details/coffee/:coffeeName/:propertyName", Routes::bind(&EspressorEndpoint::getCoffeeDetails, this));     // Coffee details
         Routes::Get(router, "/details/:detailName/", Routes::bind(&EspressorEndpoint::getDetail, this));
+
         // Prepare and choose your coffee route
         Routes::Post(router, "/options/:name", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
         Routes::Post(router, "/options/:name/:water/:milk/:coffee", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
     }
 
-    // Espressor class test route function
-    void getDetail(const Rest::Request& request, Http::ResponseWriter response) {
-        auto detailName = request.param(":detailName").as<string>();
+    // Get Espressor quantities details method
+    void getEspressorDetails(const Rest::Request& request, Http::ResponseWriter response) {
 
-        string* det;
-        det = esp.getDetails();
-
-        Guard guard(EspressorLock);
-
-        string value;
-        value = esp.getDetail(detailName);
-
-        cout << value;
-        if (value != "") {
-
-            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
-            using namespace Http;
-            response.headers()
-                    .add<Header::Server>("pistache/0.1")
-                    .add<Header::ContentType>(MIME(Text, Plain));
-
-            response.send(Http::Code::Ok, detailName + " is " + value);
-        }
-        else {
-            response.send(Http::Code::Not_Found, detailName + " was not found");
-        }
     }
+
+    // Get one explicit coffee details method
+    void getCoffeeDetails(const Rest::Request& request, Http::ResponseWriter response) {
+
+    }
+
 
     void chooseCoffee(const Rest::Request& request, Http::ResponseWriter response){
         auto name = request.param(":name").as<string>();
@@ -195,121 +182,182 @@ private:
     }
 
     // Endpoint to configure one of the Espressor's settings.
-    void setSetting(const Rest::Request& request, Http::ResponseWriter response){
-        // You don't know what the parameter content that you receive is, but you should
-        // try to cast it to some data structure. Here, I cast the settingName to string.
-        auto settingName = request.param(":settingName").as<string>();
-
-        // This is a guard that prevents editing the same value by two concurent threads.
-        Guard guard(EspressorLock);
-
-
-        string val = "";
-        if (request.hasParam(":value")) {
-            auto value = request.param(":value");
-            val = value.as<string>();
-        }
-
-        // Setting the Espressor's setting to value
-        int setResponse = esp.set(settingName, val);
-
-        // Sending some confirmation or error response.
-        if (setResponse == 1) {
-            response.send(Http::Code::Ok, settingName + " was set to " + val);
-        }
-        else {
-            response.send(Http::Code::Not_Found, settingName + " was not found and or '" + val + "' was not a valid value ");
-        }
-
-    }
-
-    // Setting to get the settings value of one of the configurations of the Espressor
-    void getSetting(const Rest::Request& request, Http::ResponseWriter response){
-        auto settingName = request.param(":settingName").as<string>();
-
-        Guard guard(EspressorLock);
-
-        string valueSetting = esp.get(settingName);
-
-        if (valueSetting != "") {
-
-            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
-            using namespace Http;
-            response.headers()
-                    .add<Header::Server>("pistache/0.1")
-                    .add<Header::ContentType>(MIME(Text, Plain));
-
-            response.send(Http::Code::Ok, settingName + " is " + valueSetting);
-        }
-        else {
-            response.send(Http::Code::Not_Found, settingName + " was not found");
-        }
-    }
+//    void setSetting(const Rest::Request& request, Http::ResponseWriter response){
+//        // You don't know what the parameter content that you receive is, but you should
+//        // try to cast it to some data structure. Here, I cast the settingName to string.
+//        auto settingName = request.param(":settingName").as<string>();
+//
+//        // This is a guard that prevents editing the same value by two concurent threads.
+//        Guard guard(EspressorLock);
+//
+//
+//        string val = "";
+//        if (request.hasParam(":value")) {
+//            auto value = request.param(":value");
+//            val = value.as<string>();
+//        }
+//
+//        // Setting the Espressor's setting to value
+//        int setResponse = esp.set(settingName, val);
+//
+//        // Sending some confirmation or error response.
+//        if (setResponse == 1) {
+//            response.send(Http::Code::Ok, settingName + " was set to " + val);
+//        }
+//        else {
+//            response.send(Http::Code::Not_Found, settingName + " was not found and or '" + val + "' was not a valid value ");
+//        }
+//
+//    }
+//
+//    // Setting to get the settings value of one of the configurations of the Espressor
+//    void getSetting(const Rest::Request& request, Http::ResponseWriter response){
+//        auto settingName = request.param(":settingName").as<string>();
+//
+//        Guard guard(EspressorLock);
+//
+//        string valueSetting = esp.get(settingName);
+//
+//        if (valueSetting != "") {
+//
+//            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+//            using namespace Http;
+//            response.headers()
+//                    .add<Header::Server>("pistache/0.1")
+//                    .add<Header::ContentType>(MIME(Text, Plain));
+//
+//            response.send(Http::Code::Ok, settingName + " is " + valueSetting);
+//        }
+//        else {
+//            response.send(Http::Code::Not_Found, settingName + " was not found");
+//        }
+//    }
 
     // Defining the class of the Espressor. It should model the entire configuration of the Espressor
     class Espressor {
     public:
         explicit Espressor() = default;
 
-        string* getDetails() {
-            string details[5];
-
-            details[0] = std::to_string(espressor_details.current_milk.quant);
-            details[1] = std::to_string(espressor_details.current_coffee.quant);
-            details[2] = std::to_string(espressor_details.current_water.quant);
-            details[3] = std::to_string(espressor_details.current_coffee_filters.quant);
-            details[4] = std::to_string(espressor_details.coffees_made);
-
-            return details;
-        }
-
         // Setting the value for one of the settings. Hardcoded for the defrosting option
-        int set(string name, string value) {
-            if(name == "defrost"){
-                defrost.name = name;
-                if(value == "true"){
-                    defrost.value = true;
-                    return 1;
-                }
-                if(value == "false"){
-                    defrost.value = false;
-                    return 1;
-                }
-            }
-            return 0;
+//        int set(string name, string value) {
+//            if(name == "defrost"){
+//                defrost.name = name;
+//                if(value == "true"){
+//                    defrost.value = true;
+//                    return 1;
+//                }
+//                if(value == "false"){
+//                    defrost.value = false;
+//                    return 1;
+//                }
+//            }
+//            return 0;
+//        }
+//
+//        // Getter
+//        string get(std::string name) {
+//            if (name == "defrost"){
+//                return std::to_string(defrost.value);
+//            }
+//            else{
+//                return "";
+//            }
+//        }
+
+        double roundOf(double value, unsigned char prec) {
+            float pow_10 = pow(10.0f, (float)prec);
+            return round(value * pow_10) / pow_10;
         }
 
-        // Getter
-        string get(std::string name) {
-            if (name == "defrost"){
-                return std::to_string(defrost.value);
+        // Getter for espressor details
+        std::vector<str::string> getEspressor(string propertyName = "nothing") {
+            std::vector<std::string> response;
+
+            if (propertyName == "nothing") {
+                double water = roundOf(espressor_details.current_water.quant, 2);
+                double milk = roundOf(espressor_details.current_milk.quant, 2);
+                double coffee = roundOf(espressor_details.current_coffee.quant, 2);
+
+                response.emplace_back(std::to_string(water));
+                response.emplace_back(std::to_string(milk));
+                response.emplace_back(std::to_string(coffee));
+                response.emplace_back(std::to_string(espressor_details.current_coffee_filters.quant));
+                response.emplace_back(std::to_string(espressor_details.coffees_made));
+            } else {
+                if (propertyName == "water") {
+                    response.emplace_back(std::to_string(espressor_details.current_water.quant));
+                } else if (propertyName == "milk") {
+                    response.emplace_back(std::to_string(espressor_details.current_milk.quant));
+                } else if (propertyName == "coffee") {
+                    response.emplace_back(std::to_string(espressor_details.current_coffee.quant));
+                } else if (propertyName == "coffee_filters") {
+                    response.emplace_back(std::to_string(espressor_details.current_coffee_filters.quant));
+                } else if (propertyName == "coffees_made") {
+                    response.emplace_back(std::to_string(espressor_details.coffees_made));
+                } else {
+                    response.emplace_back("not_found");
+                }
             }
-            else{
-                return "";
-            }
+
+            return response;
         }
 
-        // Getter for test route function
-        string getDetail(string name) {
-            if (name == "water") {
-                return std::to_string(espressor_details.current_water.quant);
+
+        // Getter for details of one explicit coffee
+        std::vector<str::string> getCoffee(string coffeeName, string propertyName = "nothing") {
+            std::vector<std::string> response;
+            double water = 0;
+            double milk = 0;
+            double coffee = 0;
+            double time = 0;
+            int hasProperty = 0;
+
+            if (propertyName != "nothing") {
+                hasProperty = 1;
             }
-            else if (name == "coffee") {
-                return std::to_string(espressor_details.current_coffee.quant);
+            if (coffeeName == "black_coffee") {
+                water = possible_choices.black_coffee.water.quant;
+                milk = possible_choices.black_coffee.milk.quant;
+                coffee = possible_choices.black_coffee.coffee.quant;
+                time = possible_choices.black_coffee.time_needed;
+            } else if (coffeeName == "espresso") {
+                water = possible_choices.espresso.water.quant;
+                milk = possible_choices.espresso.milk.quant;
+                coffee = possible_choices.espresso.coffee.quant;
+                time = possible_choices.espresso.time_needed;
+            } else if (coffeeName == "cappuccino") {
+                water = possible_choices.cappuccino.water.quant;
+                milk = possible_choices.cappuccino.milk.quant;
+                coffee = possible_choices.cappuccino.coffee.quant;
+                time = possible_choices.cappuccino.time_needed;
+            } else if (coffeeName == "flat_white") {
+                water = possible_choices.flat_white.water.quant;
+                milk = possible_choices.flat_white.milk.quant;
+                coffee = possible_choices.flat_white.coffee.quant;
+                time = possible_choices.flat_white.time_needed;
+            } else {
+                response.emplace_back("coffee_not_found");
             }
-            else if (name == "milk") {
-                return std::to_string(espressor_details.current_milk.quant);
+
+            response.emplace_back(std::to_string(hasProperty));
+
+            if (hasProperty == 1) {
+                if (propertyName == "water") {
+                    response.emplace_back(std::to_string(water));
+                } else if (propertyName == "milk") {
+                    response.emplace_back(std::to_string(milk));
+                } else if (propertyName == "coffee") {
+                    response.emplace_back(std::to_string(coffee));
+                } else if (propertyName == "time") {
+                    response.emplace_back(std::to_string(time));
+                } else {
+                    response.emplace_back("property_not_found");
+                }
             }
-            else if (name == "numbers") {
-                return std::to_string(espressor_details.coffees_made);
-            }
-            else if (name == "filters") {
-                return std::to_string(espressor_details.current_coffee_filters.quant);
-            }
-            else {
-                return "";
-            }
+
+            return response;
         }
+
 
         std::vector<std::string> getChosenCoffee(string name, double milk, double water, double coffee) {
             std::vector<std::string> response;
@@ -380,10 +428,10 @@ private:
             coffee your_choice = {0, 0, 0, 0};
         } possible_choices;
 
-        struct boolSetting {
-            string name;
-            int value;
-        } defrost;
+//        struct boolSetting {
+//            string name;
+//            int value;
+//        } defrost;
     };
 
     // Create the lock which prevents concurrent editing of the same variable
