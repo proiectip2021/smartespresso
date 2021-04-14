@@ -13,7 +13,6 @@
 #include <csignal>
 #include <string>
 #include <cmath>
-#include <iomanip>
 
 #include <pistache/net.h>
 #include <pistache/http.h>
@@ -24,6 +23,7 @@
 #include <pistache/endpoint.h>
 #include <pistache/common.h>
 #include <valarray>
+
 #include "json.hpp"
 
 // for convenience
@@ -95,24 +95,23 @@ private:
 
         // Details routes
         Routes::Get(router, "/details/espressor", Routes::bind(&EspressorEndpoint::getEspressorDetails, this));      // Espressor details
-        Routes::Get(router, "/details/espressor/:propertyName", Routes::bind(&EspressorEndpoint::getEspressorDetails, this));      // Espressor's property details
+        Routes::Get(router, "/details/espressor/:propertyName", Routes::bind(&EspressorEndpoint::getEspressorDetails, this));      // Espressor property details
 
         Routes::Get(router, "/details/coffee/:coffeeName", Routes::bind(&EspressorEndpoint::getCoffeeDetails, this));     // Explicit coffee details
         Routes::Get(router, "/details/coffee/:coffeeName/:propertyName", Routes::bind(&EspressorEndpoint::getCoffeeDetails, this));     // Explicit coffee property details
-//        Routes::Get(router, "/details/:detailName/", Routes::bind(&EspressorEndpoint::getDetail, this));
 
         // Prepare and choose your coffee route
         Routes::Post(router, "/options/:name", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
         Routes::Post(router, "/options/:name/:water/:milk/:coffee", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
     }
 
-    // Get Espressor quantities details method
+    // Get current espressor quantities function
     void getEspressorDetails(const Rest::Request& request, Http::ResponseWriter response) {
         string property = "nothing";
 
-        if (request.hasParam(":propertyName")) {
-            auto propertyName = request.param(":propertyName");
-            property = propertyName.as<string>();
+        if (!request.body().empty()) {
+            auto reqBody = json::parse(request.body());
+            property = reqBody.value("property", "nothing");
         }
 
         std::vector<std::string> espressorDetails = esp.getEspressor(property);
@@ -158,9 +157,9 @@ private:
         string property = "nothing";
         string coffeeName = request.param(":coffeeName").as<string>();
 
-        if (request.hasParam(":propertyName")) {
-            auto propertyName = request.param(":propertyName");
-            property = propertyName.as<string>();
+        if (!request.body().empty()) {
+            auto reqBody = json::parse(request.body());
+            property = reqBody.value("property", "nothing");
         }
 
         std::vector<std::string> coffeeDetails = esp.getCoffee(coffeeName, property);
