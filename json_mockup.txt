@@ -1,0 +1,14 @@
+-> details/espressor:
+{
+    "property": "water/coffee/filters/etc"
+}
+sau BODY GOL (va afisa toate cantitatile curente)
+
+-----------------------------------------------------
+-> details/coffee/:coffeeName
+{
+    "property": "black_cofee/cappuccino/etc"
+}
+sau BODY GOL (va afisa toate cantitatile necesare cafelei dorite)
+
+-----------------------------------------------------
