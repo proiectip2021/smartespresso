@@ -93,9 +93,10 @@ private:
 //        Routes::Get(router, "/settings/:settingName/", Routes::bind(&EspressorEndpoint::getSetting, this));
 
         // Details routes
-        Routes::Get(router, "/details/espressor/:propertyName/", Routes::bind(&EspressorEndpoint::getEspressorDetails, this));      // Espressor details
-        Routes::Get(router, "/details/coffee/:coffeeName/:propertyName", Routes::bind(&EspressorEndpoint::getCoffeeDetails, this));     // Coffee details
-        Routes::Get(router, "/details/:detailName/", Routes::bind(&EspressorEndpoint::getDetail, this));
+        Routes::Get(router, "/details/espressor", Routes::bind(&EspressorEndpoint::getEspressorDetails, this));      // Espressor details
+        Routes::Get(router, "/details/espressor/:propertyName", Routes::bind(&EspressorEndpoint::getEspressorDetails, this));      // Espressor details
+//        Routes::Get(router, "/details/coffee/:coffeeName/:propertyName", Routes::bind(&EspressorEndpoint::getCoffeeDetails, this));     // Coffee details
+//        Routes::Get(router, "/details/:detailName/", Routes::bind(&EspressorEndpoint::getDetail, this));
 
         // Prepare and choose your coffee route
         Routes::Post(router, "/options/:name", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
@@ -104,7 +105,49 @@ private:
 
     // Get Espressor quantities details method
     void getEspressorDetails(const Rest::Request& request, Http::ResponseWriter response) {
+        string property = "nothing";
 
+        if (request.hasParam(":propertyName")) {
+            auto propertyName = request.param(":propertyName");
+            property = propertyName.as<string>();
+        }
+
+        std::vector<std::string> espressorDetails = esp.getEspressor(property);
+
+        if (espressorDetails[0] == "property_not_found") {
+            response.send(Http::Code::Not_Found, "Our espressor does not have a " + property + " property.");
+        }
+        else {
+            Guard guard(EspressorLock);
+            // call decrease function and check/notice if there's any/not much water/milk/coffee left
+
+            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+            using namespace Http;
+            response.headers()
+                    .add<Header::Server>("pistache/0.1")
+                    .add<Header::ContentType>(MIME(Application, Json));
+
+            json e = {};
+
+            if (espressorDetails.size() == 1) {
+                e = {
+                        {"1", "Espressor " + property + " quantity"},
+                        {property, espressorDetails[0]}
+                };
+            } else {
+                e = {
+                        {"1", "Espressor current quantities:"},
+                        {"water", espressorDetails[0]},
+                        {"milk", espressorDetails[1]},
+                        {"coffee", espressorDetails[2]},
+                        {"filters", espressorDetails[3]},
+                        {"coffees", espressorDetails[4]}
+                };
+            }
+
+            std::string s = e.dump();
+            response.send(Http::Code::Ok, s);
+        }
     }
 
     // Get one explicit coffee details method
@@ -270,7 +313,7 @@ private:
         }
 
         // Getter for espressor details
-        std::vector<str::string> getEspressor(string propertyName = "nothing") {
+        std::vector<std::string> getEspressor(string propertyName = "nothing") {
             std::vector<std::string> response;
 
             if (propertyName == "nothing") {
@@ -295,7 +338,7 @@ private:
                 } else if (propertyName == "coffees_made") {
                     response.emplace_back(std::to_string(espressor_details.coffees_made));
                 } else {
-                    response.emplace_back("not_found");
+                    response.emplace_back("property_not_found");
                 }
             }
 
@@ -304,7 +347,7 @@ private:
 
 
         // Getter for details of one explicit coffee
-        std::vector<str::string> getCoffee(string coffeeName, string propertyName = "nothing") {
+        std::vector<std::string> getCoffee(string coffeeName, string propertyName = "nothing") {
             std::vector<std::string> response;
             double water = 0;
             double milk = 0;
