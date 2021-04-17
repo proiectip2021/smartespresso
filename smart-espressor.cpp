@@ -13,6 +13,7 @@
 #include <csignal>
 #include <string>
 #include <cmath>
+#include <ctime>
 
 #include <pistache/net.h>
 #include <pistache/http.h>
@@ -99,6 +100,9 @@ private:
         Routes::Get(router, "/details/espressor", Routes::bind(&EspressorEndpoint::getEspressorDetails, this));      // Espressor details
 
         Routes::Get(router, "/details/coffee/:coffeeName", Routes::bind(&EspressorEndpoint::getCoffeeDetails, this));     // Explicit coffee details
+
+        Routes::Get(router, "/details/stats", Routes::bind(&EspressorEndpoint::getNumberOfCoffees, this));     // Number of coffees made today
+
 
         // Prepare and choose your coffee route
         Routes::Post(router, "/options/:name", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
@@ -300,6 +304,48 @@ private:
         }
     }
 
+    // Get current espressor quantities function
+    void getNumberOfCoffees(const Rest::Request& request, Http::ResponseWriter response) {
+        string property = "nothing";
+
+        if (!request.body().empty()) {
+            auto reqBody = json::parse(request.body());
+            property = reqBody.value("property", "nothing");
+        }
+
+        std::vector<std::string> coffeeCount = esp.getEspressor(property);
+
+        if (coffeeCount[0] == "property_not_found") {
+            response.send(Http::Code::Not_Found, "Our espressor does not have a '" + property + "' property.");
+        }
+        else {
+            Guard guard(EspressorLock);
+            // call decrease function and check/notice if there's any/not much water/milk/coffee left
+
+            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+            using namespace Http;
+            response.headers()
+                    .add<Header::Server>("pistache/0.1")
+                    .add<Header::ContentType>(MIME(Application, Json));
+
+            json e = {};
+
+            if (coffeeCount.size() == 1) {
+                e = {
+                        {"1", "Espressor's " + property + ":"},
+                        {property, coffeeCount[0]}
+                };
+            } else {
+                e = {
+                        {"Number coffees made today", coffeeCount[4]}
+                };
+            }
+
+            std::string s = e.dump();
+            response.send(Http::Code::Ok, s);
+        }
+    }
+
     // Get one explicit coffee details method
     void getCoffeeDetails(const Rest::Request& request, Http::ResponseWriter response) {
         string property = "nothing";
@@ -403,6 +449,8 @@ private:
                 {"coffee", chosenCoffee[2]}
             };
             std::string s = j.dump();
+            time_t now = time(0);
+            esp.count_coffee(now);
             response.send(Http::Code::Ok, s);
         }
     }
@@ -519,7 +567,7 @@ private:
                 milk = espressor_details.current_milk.quant;
                 coffee = espressor_details.current_coffee.quant;
                 filters = round(espressor_details.filters_usage.quant);
-                coffees = round(espressor_details.coffees_today);
+                coffees = round(espressor_details.coffees_today.number_today);
 
                 cout << water << " " << milk << " " << coffee << " " << filters << " " << coffees;
 
@@ -542,7 +590,7 @@ private:
                     filters = round(espressor_details.filters_usage.quant);
                     response.emplace_back(std::to_string(filters));
                 } else if (propertyName == "coffees_today") {
-                    coffees = round(espressor_details.coffees_today);
+                    coffees = round(espressor_details.coffees_today.number_today);
                     response.emplace_back(std::to_string(coffees));
                 } else {
                     response.emplace_back("property_not_found");
@@ -617,6 +665,38 @@ private:
             return response;
         }
 
+        void count_coffee(time_t day){
+//            time_t t = time(NULL);
+            tm* timePtr = localtime(&day);
+            int new_month = timePtr->tm_mon;
+            int new_day = timePtr->tm_mday;
+            int new_year = timePtr->tm_year+ 1900;
+            time_t old_day = espressor_details.coffees_today.day;
+            int nr_coffees = espressor_details.coffees_today.number_today;
+            tm* currentTime = localtime(&old_day);
+            int current_month = currentTime->tm_mon;
+            int current_day = currentTime->tm_mday;
+            int current_year = currentTime->tm_year+ 1900;
+            if (current_year!=new_year){
+                espressor_details.coffees_today.number_today = 1;
+                espressor_details.coffees_today.day = day;
+            }
+            else if(current_year==new_year && current_month!=new_month)
+            {
+                espressor_details.coffees_today.number_today = 1;
+                espressor_details.coffees_today.day = day;
+            } else if (current_day!=new_day && current_month==new_month && current_year==new_year)
+            {
+                espressor_details.coffees_today.number_today = 1;
+                espressor_details.coffees_today.day = day;
+            }
+            else if (current_day==new_day && current_month==new_month && current_year==new_year)
+            {
+                espressor_details.coffees_today.number_today += 1;
+            }
+
+        }
+
         // Getter for chosenCoffee route
         std::vector<std::string> getChosenCoffee(string name, double milk, double water, double coffee) {
             std::vector<std::string> response;
@@ -671,12 +751,17 @@ private:
             double time_needed;
         };
 
+        struct coffee_counter {
+            int number_today;
+            time_t day={time(0)};
+        };
+
         struct details {
             quantity filters_usage = { 3 }; //number of filters
             quantity current_milk = { 200 }; // in mL
             quantity current_water = {1800};  // in mL
             quantity current_coffee = { 300 }; // in g
-            int coffees_today = 0; // per day
+            coffee_counter coffees_today = {0, time(0)}; // per day
         } espressor_details, intial_values;
 
         struct choices {
@@ -686,6 +771,8 @@ private:
             coffee flat_white = {40, 20, 16, 10};
             coffee your_choice = {0, 0, 0, 0};
         } possible_choices;
+
+
 
 //        struct boolSetting {
 //            string name;
