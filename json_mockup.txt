@@ -24,3 +24,13 @@ sau BODY GOL (va afisa toate cantitatile necesare cafelei dorite)
                     "property" este optional
 
 -----------------------------------------------------
+
+->boilWater
+{
+    "amountWater": 300 //trebuie neapart acest camp
+}
+
+->refill
+{
+    "refill":"all" // You must enter the property for which you want to refill, or 'all' if you want to refill all properties
+}
