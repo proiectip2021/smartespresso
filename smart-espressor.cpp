@@ -60,8 +60,7 @@ namespace Generic {
 class EspressorEndpoint {
 public:
     explicit EspressorEndpoint(Address addr)
-            : httpEndpoint(std::make_shared<Http::Endpoint>(addr))
-    { }
+            : httpEndpoint(std::make_shared<Http::Endpoint>(addr)) {}
 
     // Initialization of the server. Additional options can be provided here
     void init(size_t thr = 2) {
@@ -79,7 +78,7 @@ public:
     }
 
     // When signaled server shuts down
-    void stop(){
+    void stop() {
         httpEndpoint->shutdown();
     }
 
@@ -95,22 +94,32 @@ private:
 //        Routes::Get(router, "/settings/:settingName/", Routes::bind(&EspressorEndpoint::getSetting, this));
 
         // Details routes
-        Routes::Get(router, "/details", Routes::bind(&EspressorEndpoint::getDetails, this));      // One common route (the other two combined)
+        Routes::Get(router, "/details", Routes::bind(&EspressorEndpoint::getDetails,
+                                                     this));      // One common route (the other two combined)
 
-        Routes::Get(router, "/details/espressor", Routes::bind(&EspressorEndpoint::getEspressorDetails, this));      // Espressor details
+        Routes::Get(router, "/details/espressor",
+                    Routes::bind(&EspressorEndpoint::getEspressorDetails, this));      // Espressor details
 
-        Routes::Get(router, "/details/coffee/:coffeeName", Routes::bind(&EspressorEndpoint::getCoffeeDetails, this));     // Explicit coffee details
+        Routes::Get(router, "/details/coffee/:coffeeName",
+                    Routes::bind(&EspressorEndpoint::getCoffeeDetails, this));     // Explicit coffee details
 
-        Routes::Get(router, "/details/stats", Routes::bind(&EspressorEndpoint::getNumberOfCoffees, this));     // Number of coffees made today
+        Routes::Get(router, "/details/stats",
+                    Routes::bind(&EspressorEndpoint::getNumberOfCoffees, this));     // Number of coffees made today
+
+        Routes::Get(router, "/boilWater", Routes::bind(&EspressorEndpoint::boilWater, this)); //Boil water
+
+        Routes::Get(router, "/refill", Routes::bind(&EspressorEndpoint::getRefill, this)); // Refill
+
 
 
         // Prepare and choose your coffee route
         Routes::Post(router, "/options/:name", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
-        Routes::Post(router, "/options/:name/:water/:milk/:coffee", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
+        Routes::Post(router, "/options/:name/:water/:milk/:coffee",
+                     Routes::bind(&EspressorEndpoint::chooseCoffee, this));
     }
 
     // One common route function for details about both espressor and explicit coffee
-    void getDetails(const Rest::Request& request, Http::ResponseWriter response) {
+    void getDetails(const Rest::Request &request, Http::ResponseWriter response) {
         string about = "";
         string coffeeName = "";
         string property = "";
@@ -131,7 +140,8 @@ private:
                     // check the json structure
                     // if there is something different from mockup model => "Bad_Request" response
                     if ((reqBody.size() == 2 && !reqBody.contains("property")) || reqBody.size() > 2) {
-                        response.send(Http::Code::Bad_Request, "Your request contains unnecessary properties. Check again!");
+                        response.send(Http::Code::Bad_Request,
+                                      "Your request contains unnecessary properties. Check again!");
                     }
 
                     // get the property value
@@ -144,9 +154,10 @@ private:
 
                     // no property found with that name => "Not_Found" response
                     if (espressorDetails[0] == "property_not_found") {
-                        response.send(Http::Code::Not_Found, "Our espressor does not have a '" + property + "' property.");
+                        response.send(Http::Code::Not_Found,
+                                      "Our espressor does not have a '" + property + "' property.");
                     }
-                    // everything is ok! => return json response with the requested details
+                        // everything is ok! => return json response with the requested details
                     else {
                         Guard guard(EspressorLock);
                         // call decrease function and check/notice if there's any/not much water/milk/coffee left
@@ -179,22 +190,24 @@ private:
                         std::string s = e.dump();
                         response.send(Http::Code::Ok, s);
                     }
-                // case2: about == "coffee"
+                    // case2: about == "coffee"
                 } else if (about == "coffee") {
 
                     // check the json structure
                     // if there is something different from mockup model => "Bad_Request" response
                     if ((reqBody.size() == 3 && !reqBody.contains("property")) || reqBody.size() > 3) {
-                        response.send(Http::Code::Bad_Request, "Your request contains unnecessary properties. Check again!");
+                        response.send(Http::Code::Bad_Request,
+                                      "Your request contains unnecessary properties. Check again!");
                     }
 
                     // make sure that we have the type of coffee
                     if (reqBody.contains("coffeeName")) {
                         coffeeName = reqBody.value("coffeeName", "nothing");
                     }
-                    // if not => "No_Content" response
+                        // if not => "No_Content" response
                     else {
-                        response.send(Http::Code::No_Content, "You must choose one type of coffee you want details about!");
+                        response.send(Http::Code::No_Content,
+                                      "You must choose one type of coffee you want details about!");
                     }
 
                     // get the property value
@@ -207,11 +220,12 @@ private:
                     if (coffeeDetails[0] == "coffee_not_found") {
                         response.send(Http::Code::Not_Found, "Our espressor can not make this type of coffee...");
                     }
-                    // no coffee property with that name => "Not_Found" response
+                        // no coffee property with that name => "Not_Found" response
                     else if (coffeeDetails[0] == "property_not_found") {
-                        response.send(Http::Code::Not_Found, "The type of coffee that you requested does not have this property...");
+                        response.send(Http::Code::Not_Found,
+                                      "The type of coffee that you requested does not have this property...");
                     }
-                    // everything is ok! => json response with coffe details
+                        // everything is ok! => json response with coffe details
                     else {
                         Guard guard(EspressorLock);
                         // call decrease function and check/notice if there's any/not much water/milk/coffee left
@@ -244,21 +258,22 @@ private:
                     }
 
                 } else {
-                    response.send(Http::Code::No_Content, "No details available about " + about + ". Choose between: espressor/coffee!");
+                    response.send(Http::Code::No_Content,
+                                  "No details available about " + about + ". Choose between: espressor/coffee!");
                 }
+            } else {
+                response.send(Http::Code::Bad_Request,
+                              "You must choose if you want details about the espressor current quantities or about one specific type of coffee!");
             }
-            else {
-                response.send(Http::Code::Bad_Request, "You must choose if you want details about the espressor current quantities or about one specific type of coffee!");
-            }
-        }
-        else {
-            response.send(Http::Code::No_Content, "You must choose if you want details about the espressor current quantities or about one specific type of coffee!");
+        } else {
+            response.send(Http::Code::No_Content,
+                          "You must choose if you want details about the espressor current quantities or about one specific type of coffee!");
         }
     }
 
 
     // Get current espressor quantities function
-    void getEspressorDetails(const Rest::Request& request, Http::ResponseWriter response) {
+    void getEspressorDetails(const Rest::Request &request, Http::ResponseWriter response) {
         string property = "nothing";
 
         if (!request.body().empty()) {
@@ -270,8 +285,7 @@ private:
 
         if (espressorDetails[0] == "property_not_found") {
             response.send(Http::Code::Not_Found, "Our espressor does not have a '" + property + "' property.");
-        }
-        else {
+        } else {
             Guard guard(EspressorLock);
             // call decrease function and check/notice if there's any/not much water/milk/coffee left
 
@@ -285,15 +299,15 @@ private:
 
             if (espressorDetails.size() == 1) {
                 e = {
-                        {"1", "Espressor's " + property + ":"},
+                        {"1",      "Espressor's " + property + ":"},
                         {property, espressorDetails[0]}
                 };
             } else {
                 e = {
-                        {"1", "Espressor current quantities:"},
-                        {"water", espressorDetails[0]},
-                        {"milk", espressorDetails[1]},
-                        {"coffee", espressorDetails[2]},
+                        {"1",                  "Espressor current quantities:"},
+                        {"water",              espressorDetails[0]},
+                        {"milk",               espressorDetails[1]},
+                        {"coffee",             espressorDetails[2]},
                         {"filters_usage_rate", espressorDetails[3]},
                         {"coffees_made_today", espressorDetails[4]}
                 };
@@ -305,7 +319,7 @@ private:
     }
 
     // Get current espressor quantities function
-    void getNumberOfCoffees(const Rest::Request& request, Http::ResponseWriter response) {
+    void getNumberOfCoffees(const Rest::Request &request, Http::ResponseWriter response) {
         string property = "nothing";
 
         if (!request.body().empty()) {
@@ -317,8 +331,7 @@ private:
 
         if (coffeeCount[0] == "property_not_found") {
             response.send(Http::Code::Not_Found, "Our espressor does not have a '" + property + "' property.");
-        }
-        else {
+        } else {
             Guard guard(EspressorLock);
             // call decrease function and check/notice if there's any/not much water/milk/coffee left
 
@@ -332,7 +345,7 @@ private:
 
             if (coffeeCount.size() == 1) {
                 e = {
-                        {"1", "Espressor's " + property + ":"},
+                        {"1",      "Espressor's " + property + ":"},
                         {property, coffeeCount[0]}
                 };
             } else {
@@ -347,7 +360,7 @@ private:
     }
 
     // Get one explicit coffee details method
-    void getCoffeeDetails(const Rest::Request& request, Http::ResponseWriter response) {
+    void getCoffeeDetails(const Rest::Request &request, Http::ResponseWriter response) {
         string property = "nothing";
         string coffeeName = request.param(":coffeeName").as<string>();
 
@@ -361,7 +374,8 @@ private:
         if (coffeeDetails[0] == "coffee_not_found") {
             response.send(Http::Code::Not_Found, "Our espressor can not make this type of coffee...");
         } else if (coffeeDetails[0] == "property_not_found") {
-            response.send(Http::Code::Not_Found, "The type of coffee that you requested does not have this property...");
+            response.send(Http::Code::Not_Found,
+                          "The type of coffee that you requested does not have this property...");
         } else {
             Guard guard(EspressorLock);
             // call decrease function and check/notice if there's any/not much water/milk/coffee left
@@ -376,21 +390,133 @@ private:
 
             if (coffeeDetails.size() == 1) {
                 c = {
-                        {"1", "The quantity of " + property + " needed for " + coffeeName + " is:"},
+                        {"1",      "The quantity of " + property + " needed for " + coffeeName + " is:"},
                         {property, coffeeDetails[0]}
                 };
             } else {
                 c = {
-                        {"1", "The quantities needed for " + coffeeName + " are:"},
-                        {"water", coffeeDetails[0]},
-                        {"milk", coffeeDetails[1]},
+                        {"1",      "The quantities needed for " + coffeeName + " are:"},
+                        {"water",  coffeeDetails[0]},
+                        {"milk",   coffeeDetails[1]},
                         {"coffee", coffeeDetails[2]},
-                        {"time", coffeeDetails[3]}
+                        {"time",   coffeeDetails[3]}
                 };
             }
 
             std::string s = c.dump();
             response.send(Http::Code::Ok, s);
+        }
+    }
+
+    void boilWater(const Rest::Request &request, Http::ResponseWriter response) {
+        int amountWater = 0;
+
+
+        if (!request.body().empty()) {
+            auto reqBody = json::parse(request.body());
+
+
+            if (reqBody.contains("amountWater")) {
+                amountWater = reqBody.value("amountWater", 0);
+
+
+                if (amountWater != 0) {
+
+                    if (reqBody.size() > 1) {
+                        response.send(Http::Code::Bad_Request,
+                                      "Your request contains unnecessary properties. Check again!");
+                    }
+
+
+                    std::vector<std::string> waterDetails = esp.getBoilWater(amountWater);
+
+                    Guard guard(EspressorLock);
+
+                    using namespace Http;
+                    response.headers()
+                            .add<Header::Server>("pistache/0.1")
+                            .add<Header::ContentType>(MIME(Application, Json));
+
+                    json e = {};
+
+                    e = {
+                            {"1", "The water will be ready in  " + waterDetails[0] + " minutes!"}
+                    };
+
+                    std::string s = e.dump();
+                    response.send(Http::Code::Ok, s);
+
+
+                } else {
+                    response.send(Http::Code::No_Content, "No details available. Enter a quantity of water!");
+                }
+            } else {
+                response.send(Http::Code::Bad_Request, "You must enter the amount of water! (amountWater)");
+            }
+        } else {
+            response.send(Http::Code::No_Content, "You must enter the amount of water! (amountWater) ");
+        }
+    }
+
+    void getRefill(const Rest::Request &request, Http::ResponseWriter response) {
+        string refill = "all";
+
+        if (!request.body().empty()) {
+            auto reqBody = json::parse(request.body());
+
+
+            if (reqBody.size() > 2) {
+                response.send(Http::Code::Bad_Request, "Your request contains unnecessary properties. Check again!");
+            }
+            if (reqBody.contains("refill")) {
+                refill = reqBody.value("refill", "all");
+
+                esp.setMakeRefill(refill);
+
+                std::vector<std::string> refillDetails = esp.makeRefill(refill);
+
+                if (refillDetails[0] == "property_not_found") {
+                    response.send(Http::Code::Not_Found, "Our espressor does not have a '" + refill + "' property.");
+                }
+
+                else {
+                    Guard guard(EspressorLock);
+
+                    using namespace Http;
+                    response.headers()
+                            .add<Header::Server>("pistache/0.1")
+                            .add<Header::ContentType>(MIME(Application, Json));
+
+                    json e = {};
+
+                    if (refillDetails.size() == 1) {
+                        e = {
+                                {"1",    "Espressor's " + refill + ":"},
+                                {refill, refillDetails[0]}
+                        };
+                    } else {
+                        e = {
+                                {"1",                  "Espressor current quantities:"},
+                                {"water",              refillDetails[0]},
+                                {"milk",               refillDetails[1]},
+                                {"coffee",             refillDetails[2]},
+                                {"filters_usage_rate", refillDetails[3]}
+                        };
+                    }
+
+                    std::string s = e.dump();
+                    response.send(Http::Code::Ok, s);
+                }
+
+
+
+            } else {
+                response.send(Http::Code::Bad_Request,
+                              "You must enter the property for which you want to refill, or 'all' if you want to refill all properties");
+            }
+        } else {
+            response.send(Http::Code::No_Content,
+                          "'refill' field is required");
         }
     }
 
@@ -444,9 +570,9 @@ private:
             // if there's any/not much water/milk/coffee left add in json
             // if there is enough milk, water, coffee for my order then send it else send an error response
             json j = {
-                {"milk", chosenCoffee[0]},
-                {"water", chosenCoffee[1]},
-                {"coffee", chosenCoffee[2]}
+                    {"milk", chosenCoffee[0]},
+                    {"water", chosenCoffee[1]},
+                    {"coffee", chosenCoffee[2]}
             };
             std::string s = j.dump();
             time_t now = time(0);
@@ -597,6 +723,88 @@ private:
                 }
             }
 
+            return response;
+        }
+        std::vector<std::string> makeRefill(string refill = "all") {
+
+            std::vector<std::string> response;
+            double water = 0;
+            double milk = 0;
+            double coffee = 0;
+            int filters = 0;
+
+
+            if (refill == "all") {
+                water = espressor_details.current_water.quant;
+                milk = espressor_details.current_milk.quant;
+                coffee = espressor_details.current_coffee.quant;
+                filters = espressor_details.filters_usage.quant;
+
+
+
+
+                response.emplace_back(std::to_string(water));
+                response.emplace_back(std::to_string(milk));
+                response.emplace_back(std::to_string(coffee));
+                response.emplace_back(std::to_string(filters));
+
+            } else {
+                if (refill == "water") {
+                    water = espressor_details.current_water.quant;
+                    response.emplace_back(std::to_string(water));
+
+                } else if (refill == "milk") {
+                    milk = espressor_details.current_milk.quant;
+                    response.emplace_back(std::to_string(milk));
+                } else if (refill == "coffee") {
+                    coffee = espressor_details.current_coffee.quant;
+                    response.emplace_back(std::to_string(coffee));
+                } else if (refill == "filters_usage") {
+                    filters = round(espressor_details.filters_usage.quant);
+                    response.emplace_back(std::to_string(filters));
+                } else {
+                    response.emplace_back("property_not_found");
+                }
+            }
+
+            return response;
+        }
+        std::vector<std::string> setMakeRefill(string refill = "all") {
+
+            if (refill == "all") {
+                espressor_details.current_water.quant = initial_values.current_water.quant;
+                espressor_details.current_milk.quant = initial_values.current_milk.quant;
+                espressor_details.current_coffee.quant  = initial_values.current_coffee.quant;
+                espressor_details.filters_usage.quant = initial_values.filters_usage.quant;
+
+            } else {
+                if (refill == "water") {
+                    espressor_details.current_water.quant = initial_values.current_water.quant;
+                } else if (refill == "milk") {
+                    espressor_details.current_milk.quant = initial_values.current_milk.quant;
+
+                } else if (refill == "coffee") {
+                    espressor_details.current_coffee.quant = initial_values.current_coffee.quant;
+
+                } else if (refill == "filters_usage") {
+                    espressor_details.filters_usage.quant = initial_values.filters_usage.quant;
+                }
+            }
+
+
+        }
+        std::vector<std::string> getBoilWater(int amountWater) {
+            std::vector<std::string> response;
+            int time = 0 ;
+            int unit = 2;
+            //Atentie !!! trebuie scazuta cantitatea de apa
+            if(amountWater % 100 == 0) {
+                time = unit * (amountWater/100);
+            } else {
+                time = unit * (amountWater/100) + unit;
+            }
+
+            response.emplace_back(std::to_string(time));
             return response;
         }
 
@@ -762,7 +970,7 @@ private:
             quantity current_water = {1800};  // in mL
             quantity current_coffee = { 300 }; // in g
             coffee_counter coffees_today = {0, time(0)}; // per day
-        } espressor_details, intial_values;
+        } espressor_details, initial_values;
 
         struct choices {
             coffee black_coffee = {0, 50, 20, 5};
