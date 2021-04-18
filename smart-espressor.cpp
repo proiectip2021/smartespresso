@@ -93,22 +93,17 @@ private:
 //        Routes::Post(router, "/settings/:settingName/:value", Routes::bind(&EspressorEndpoint::setSetting, this));
 //        Routes::Get(router, "/settings/:settingName/", Routes::bind(&EspressorEndpoint::getSetting, this));
 
-        // Details routes
+        // Get details about espressor quantities or one explicit coffee
         Routes::Get(router, "/details", Routes::bind(&EspressorEndpoint::getDetails,
-                                                     this));      // One common route (the other two combined)
-
-        Routes::Get(router, "/details/espressor",
-                    Routes::bind(&EspressorEndpoint::getEspressorDetails, this));      // Espressor details
-
-        Routes::Get(router, "/details/coffee/:coffeeName",
-                    Routes::bind(&EspressorEndpoint::getCoffeeDetails, this));     // Explicit coffee details
+                                                     this));
 
         Routes::Get(router, "/details/stats",
                     Routes::bind(&EspressorEndpoint::getNumberOfCoffees, this));     // Number of coffees made today
 
+
         Routes::Get(router, "/boilWater", Routes::bind(&EspressorEndpoint::boilWater, this)); //Boil water
 
-        Routes::Get(router, "/refill", Routes::bind(&EspressorEndpoint::getRefill, this)); // Refill
+        Routes::Get(router, "/refill", Routes::bind(&EspressorEndpoint::refill, this)); // Refill
 
 
 
@@ -273,52 +268,6 @@ private:
 
 
     // Get current espressor quantities function
-    void getEspressorDetails(const Rest::Request &request, Http::ResponseWriter response) {
-        string property = "nothing";
-
-        if (!request.body().empty()) {
-            auto reqBody = json::parse(request.body());
-            property = reqBody.value("property", "nothing");
-        }
-
-        std::vector<std::string> espressorDetails = esp.getEspressor(property);
-
-        if (espressorDetails[0] == "property_not_found") {
-            response.send(Http::Code::Not_Found, "Our espressor does not have a '" + property + "' property.");
-        } else {
-            Guard guard(EspressorLock);
-            // call decrease function and check/notice if there's any/not much water/milk/coffee left
-
-            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
-            using namespace Http;
-            response.headers()
-                    .add<Header::Server>("pistache/0.1")
-                    .add<Header::ContentType>(MIME(Application, Json));
-
-            json e = {};
-
-            if (espressorDetails.size() == 1) {
-                e = {
-                        {"1",      "Espressor's " + property + ":"},
-                        {property, espressorDetails[0]}
-                };
-            } else {
-                e = {
-                        {"1",                  "Espressor current quantities:"},
-                        {"water",              espressorDetails[0]},
-                        {"milk",               espressorDetails[1]},
-                        {"coffee",             espressorDetails[2]},
-                        {"filters_usage_rate", espressorDetails[3]},
-                        {"coffees_made_today", espressorDetails[4]}
-                };
-            }
-
-            std::string s = e.dump();
-            response.send(Http::Code::Ok, s);
-        }
-    }
-
-    // Get current espressor quantities function
     void getNumberOfCoffees(const Rest::Request &request, Http::ResponseWriter response) {
         string property = "nothing";
 
@@ -359,54 +308,6 @@ private:
         }
     }
 
-    // Get one explicit coffee details method
-    void getCoffeeDetails(const Rest::Request &request, Http::ResponseWriter response) {
-        string property = "nothing";
-        string coffeeName = request.param(":coffeeName").as<string>();
-
-        if (!request.body().empty()) {
-            auto reqBody = json::parse(request.body());
-            property = reqBody.value("property", "nothing");
-        }
-
-        std::vector<std::string> coffeeDetails = esp.getCoffee(coffeeName, property);
-
-        if (coffeeDetails[0] == "coffee_not_found") {
-            response.send(Http::Code::Not_Found, "Our espressor can not make this type of coffee...");
-        } else if (coffeeDetails[0] == "property_not_found") {
-            response.send(Http::Code::Not_Found,
-                          "The type of coffee that you requested does not have this property...");
-        } else {
-            Guard guard(EspressorLock);
-            // call decrease function and check/notice if there's any/not much water/milk/coffee left
-
-            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
-            using namespace Http;
-            response.headers()
-                    .add<Header::Server>("pistache/0.1")
-                    .add<Header::ContentType>(MIME(Application, Json));
-
-            json c = {};
-
-            if (coffeeDetails.size() == 1) {
-                c = {
-                        {"1",      "The quantity of " + property + " needed for " + coffeeName + " is:"},
-                        {property, coffeeDetails[0]}
-                };
-            } else {
-                c = {
-                        {"1",      "The quantities needed for " + coffeeName + " are:"},
-                        {"water",  coffeeDetails[0]},
-                        {"milk",   coffeeDetails[1]},
-                        {"coffee", coffeeDetails[2]},
-                        {"time",   coffeeDetails[3]}
-                };
-            }
-
-            std::string s = c.dump();
-            response.send(Http::Code::Ok, s);
-        }
-    }
 
     void boilWater(const Rest::Request &request, Http::ResponseWriter response) {
         int amountWater = 0;
@@ -458,7 +359,7 @@ private:
         }
     }
 
-    void getRefill(const Rest::Request &request, Http::ResponseWriter response) {
+    void refill(const Rest::Request &request, Http::ResponseWriter response) {
         string refill = "all";
 
         if (!request.body().empty()) {
@@ -491,12 +392,12 @@ private:
 
                     if (refillDetails.size() == 1) {
                         e = {
-                                {"1",    "Espressor's " + refill + ":"},
+                                {"1",    "Espressor's " + refill + " after refill:"},
                                 {refill, refillDetails[0]}
                         };
                     } else {
                         e = {
-                                {"1",                  "Espressor current quantities:"},
+                                {"1",                  "Espressor quantities after refill:"},
                                 {"water",              refillDetails[0]},
                                 {"milk",               refillDetails[1]},
                                 {"coffee",             refillDetails[2]},
@@ -521,7 +422,7 @@ private:
     }
 
 
-    void chooseCoffee(const Rest::Request& request, Http::ResponseWriter response){
+    void chooseCoffee(const Rest::Request& request, Http::ResponseWriter response) {
         auto name = request.param(":name").as<string>();
 
         int water = 0;
@@ -591,88 +492,12 @@ private:
         response.send(Http::Code::Ok);
     }
 
-    // Endpoint to configure one of the Espressor's settings.
-//    void setSetting(const Rest::Request& request, Http::ResponseWriter response){
-//        // You don't know what the parameter content that you receive is, but you should
-//        // try to cast it to some data structure. Here, I cast the settingName to string.
-//        auto settingName = request.param(":settingName").as<string>();
-//
-//        // This is a guard that prevents editing the same value by two concurent threads.
-//        Guard guard(EspressorLock);
-//
-//
-//        string val = "";
-//        if (request.hasParam(":value")) {
-//            auto value = request.param(":value");
-//            val = value.as<string>();
-//        }
-//
-//        // Setting the Espressor's setting to value
-//        int setResponse = esp.set(settingName, val);
-//
-//        // Sending some confirmation or error response.
-//        if (setResponse == 1) {
-//            response.send(Http::Code::Ok, settingName + " was set to " + val);
-//        }
-//        else {
-//            response.send(Http::Code::Not_Found, settingName + " was not found and or '" + val + "' was not a valid value ");
-//        }
-//
-//    }
-//
-//    // Setting to get the settings value of one of the configurations of the Espressor
-//    void getSetting(const Rest::Request& request, Http::ResponseWriter response){
-//        auto settingName = request.param(":settingName").as<string>();
-//
-//        Guard guard(EspressorLock);
-//
-//        string valueSetting = esp.get(settingName);
-//
-//        if (valueSetting != "") {
-//
-//            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
-//            using namespace Http;
-//            response.headers()
-//                    .add<Header::Server>("pistache/0.1")
-//                    .add<Header::ContentType>(MIME(Text, Plain));
-//
-//            response.send(Http::Code::Ok, settingName + " is " + valueSetting);
-//        }
-//        else {
-//            response.send(Http::Code::Not_Found, settingName + " was not found");
-//        }
-//    }
 
     // Defining the class of the Espressor. It should model the entire configuration of the Espressor
     class Espressor {
     public:
         explicit Espressor() = default;
 
-        // Setting the value for one of the settings. Hardcoded for the defrosting option
-//        int set(string name, string value) {
-//            if(name == "defrost"){
-//                defrost.name = name;
-//                if(value == "true"){
-//                    defrost.value = true;
-//                    return 1;
-//                }
-//                if(value == "false"){
-//                    defrost.value = false;
-//                    return 1;
-//                }
-//            }
-//            return 0;
-//        }
-//
-//        // Getter
-//        string get(std::string name) {
-//            if (name == "defrost"){
-//                return std::to_string(defrost.value);
-//            }
-//            else{
-//                return "";
-//            }
-//        }
 
         // To fix out format of string!!! ONLY 2 DECIMALS!!!
         double roundOf(double value) {
@@ -725,6 +550,7 @@ private:
 
             return response;
         }
+
         std::vector<std::string> makeRefill(string refill = "all") {
 
             std::vector<std::string> response;
@@ -739,8 +565,6 @@ private:
                 milk = espressor_details.current_milk.quant;
                 coffee = espressor_details.current_coffee.quant;
                 filters = espressor_details.filters_usage.quant;
-
-
 
 
                 response.emplace_back(std::to_string(water));
@@ -769,12 +593,13 @@ private:
 
             return response;
         }
-        std::vector<std::string> setMakeRefill(string refill = "all") {
+
+        void setMakeRefill(string refill = "all") {
 
             if (refill == "all") {
                 espressor_details.current_water.quant = initial_values.current_water.quant;
                 espressor_details.current_milk.quant = initial_values.current_milk.quant;
-                espressor_details.current_coffee.quant  = initial_values.current_coffee.quant;
+                espressor_details.current_coffee.quant = initial_values.current_coffee.quant;
                 espressor_details.filters_usage.quant = initial_values.filters_usage.quant;
 
             } else {
@@ -791,13 +616,13 @@ private:
                 }
             }
 
-
         }
+
         std::vector<std::string> getBoilWater(int amountWater) {
             std::vector<std::string> response;
-            int time = 0 ;
+            int time = 0;
             int unit = 2;
-            //Atentie !!! trebuie scazuta cantitatea de apa
+            // Atentie !!! trebuie scazuta cantitatea de apa
             if(amountWater % 100 == 0) {
                 time = unit * (amountWater/100);
             } else {
