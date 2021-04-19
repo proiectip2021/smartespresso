@@ -92,176 +92,123 @@ private:
         Routes::Get(router, "/ready", Routes::bind(&Generic::handleReady));
         Routes::Get(router, "/auth", Routes::bind(&EspressorEndpoint::doAuth, this));
 
-        // Get details about espressor quantities or one explicit coffee
-        Routes::Get(router, "/details", Routes::bind(&EspressorEndpoint::getDetails,
-                                                     this));
-
-        Routes::Get(router, "/details/stats",
-                    Routes::bind(&EspressorEndpoint::getNumberOfCoffees, this));     // Number of coffees made today
+        // Details routes
+        Routes::Get(router, "/details/quantities", Routes::bind(&EspressorEndpoint::getCurrentQuantities, this));        // Get details about current quantities
+        Routes::Get(router, "/details/quantities/:property", Routes::bind(&EspressorEndpoint::getCurrentQuantities, this));        // Get details about current quantity of one property
 
 
+        Routes::Get(router, "/details/coffee/:coffeeName", Routes::bind(&EspressorEndpoint::getCoffeeIngredients,this));        // Get details about one explicit coffee
+        Routes::Get(router, "/details/coffee/:coffeeName/:property", Routes::bind(&EspressorEndpoint::getCoffeeIngredients,this));        // Get details about one explicit coffee ingredient
+
+        Routes::Get(router, "/details/stats", Routes::bind(&EspressorEndpoint::getNumberOfCoffees, this));     // Get the number of coffees made today
+
+        // Espressor's functionalities
         Routes::Get(router, "/boilWater", Routes::bind(&EspressorEndpoint::boilWater, this)); //Boil water
 
-        Routes::Get(router, "/refill", Routes::bind(&EspressorEndpoint::refill, this)); // Refill
-
+        Routes::Get(router, "/refill", Routes::bind(&EspressorEndpoint::refill, this)); // Refill espressor quantities
 
 
         // Prepare and choose your coffee route
         Routes::Post(router, "/options", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
     }
 
-    // One common route function for details about both espressor and explicit coffee
-    void getDetails(const Rest::Request &request, Http::ResponseWriter response) {
-        string about = "";
-        string coffeeName = "";
-        string property = "";
+    // Get details of  current quantities
+    void getCurrentQuantities(const Rest::Request &request, Http::ResponseWriter response) {
+        string property = "nothing";
 
-        // Check if there is a json object in the request body
-        // else => return "No_Content" response
-        if (!request.body().empty()) {
-            auto reqBody = json::parse(request.body());
+        if (request.hasParam(":property")) {
+            auto propertyName = request.param(":property");
+            property = propertyName.as<string>();
+        }
 
-            // check if we have have the "about" key in the json
-            // else => return "Bad_Request" response
-            if (reqBody.contains("about")) {
-                about = reqBody.value("about", "nothing");
+        std::vector<std::string> espressorDetails = esp.getEspressor(0, property);
 
-                // case1: about == "espressor"
-                if (about == "espressor") {
+        if (espressorDetails[0] == "property_not_found") {
+            response.send(Http::Code::Not_Found, "Our espressor does not have a '" + property + "' property.");
+        }
+        else {
+            Guard guard(EspressorLock);
+            // call decrease function and check/notice if there's any/not much water/milk/coffee left
 
-                    // check the json structure
-                    // if there is something different from mockup model => "Bad_Request" response
-                    if ((reqBody.size() == 2 && !reqBody.contains("property")) || reqBody.size() > 2) {
-                        response.send(Http::Code::Bad_Request,
-                                      "Your request contains unnecessary properties. Check again!");
-                    }
+            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+            using namespace Http;
+            response.headers()
+                    .add<Header::Server>("pistache/0.1")
+                    .add<Header::ContentType>(MIME(Application, Json));
 
-                    // get the property value
-                    // if it's missing => it will take the default value "nothing" => all the espressor properties
-                    // will be returned
-                    property = reqBody.value("property", "nothing");
+            json e = {};
 
-                    // getting the espressor details
-                    std::vector<std::string> espressorDetails = esp.getEspressor(0,  property);
-
-                    // no property found with that name => "Not_Found" response
-                    if (espressorDetails[0] == "property_not_found") {
-                        response.send(Http::Code::Not_Found,
-                                      "Our espressor does not have a '" + property + "' property.");
-                    }
-                        // everything is ok! => return json response with the requested details
-                    else {
-                        Guard guard(EspressorLock);
-                        // call decrease function and check/notice if there's any/not much water/milk/coffee left
-
-                        // In this response I also add a couple of headers, describing the server that sent this
-                        // response, and the way the content is formatted.
-                        using namespace Http;
-                        response.headers()
-                                .add<Header::Server>("pistache/0.1")
-                                .add<Header::ContentType>(MIME(Application, Json));
-
-                        json e = {};
-
-                        if (espressorDetails.size() == 1) {
-                            e = {
-                                    {"1",      "Espressor's " + property + ":"},
-                                    {property, espressorDetails[0]}
-                            };
-                        } else {
-                            e = {
-                                    {"1",                  "Espressor current quantities:"},
-                                    {"water",              espressorDetails[0]},
-                                    {"milk",               espressorDetails[1]},
-                                    {"coffee",             espressorDetails[2]},
-                                    {"filters_usage_rate", espressorDetails[3]},
-                                    {"coffees_made_today", espressorDetails[4]}
-                            };
-                        }
-
-                        std::string s = e.dump();
-                        response.send(Http::Code::Ok, s);
-                    }
-                    // case2: about == "coffee"
-                } else if (about == "coffee") {
-
-                    // check the json structure
-                    // if there is something different from mockup model => "Bad_Request" response
-                    if ((reqBody.size() == 3 && !reqBody.contains("property")) || reqBody.size() > 3) {
-                        response.send(Http::Code::Bad_Request,
-                                      "Your request contains unnecessary properties. Check again!");
-                    }
-
-                    // make sure that we have the type of coffee
-                    if (reqBody.contains("coffeeName")) {
-                        coffeeName = reqBody.value("coffeeName", "nothing");
-                    }
-                        // if not => "No_Content" response
-                    else {
-                        response.send(Http::Code::No_Content,
-                                      "You must choose one type of coffee you want details about!");
-                    }
-
-                    // get the property value
-                    // if it's missing => it will take the default value "nothing" => all the needed quantities
-                    // will be returned
-                    property = reqBody.value("property", "nothing");
-                    std::vector<std::string> coffeeDetails = esp.getCoffee(coffeeName, property);
-
-                    // no coffee type with that name => "Not_Found" response
-                    if (coffeeDetails[0] == "coffee_not_found") {
-                        response.send(Http::Code::Not_Found, "Our espressor can not make this type of coffee...");
-                    }
-                        // no coffee property with that name => "Not_Found" response
-                    else if (coffeeDetails[0] == "property_not_found") {
-                        response.send(Http::Code::Not_Found,
-                                      "The type of coffee that you requested does not have this property...");
-                    }
-                        // everything is ok! => json response with coffe details
-                    else {
-                        Guard guard(EspressorLock);
-                        // call decrease function and check/notice if there's any/not much water/milk/coffee left
-
-                        // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
-                        using namespace Http;
-                        response.headers()
-                                .add<Header::Server>("pistache/0.1")
-                                .add<Header::ContentType>(MIME(Application, Json));
-
-                        json c = {};
-
-                        if (coffeeDetails.size() == 1) {
-                            c = {
-                                    {"1",      "The quantity of " + property + " needed for " + coffeeName + " is:"},
-                                    {property, coffeeDetails[0]}
-                            };
-                        } else {
-                            c = {
-                                    {"1",      "The quantities needed for " + coffeeName + " are:"},
-                                    {"water",  coffeeDetails[0]},
-                                    {"milk",   coffeeDetails[1]},
-                                    {"coffee", coffeeDetails[2]},
-                                    {"time",   coffeeDetails[3]}
-                            };
-                        }
-
-                        std::string s = c.dump();
-                        response.send(Http::Code::Ok, s);
-                    }
-
-                } else {
-                    response.send(Http::Code::No_Content,
-                                  "No details available about " + about + ". Choose between: espressor/coffee!");
-                }
+            if (espressorDetails.size() == 1) {
+                e = {
+                        {"1", "Espressor's " + property + ":"},
+                        {property, espressorDetails[0]}
+                };
             } else {
-                response.send(Http::Code::Bad_Request,
-                              "You must choose if you want details about the espressor current quantities or about one specific type of coffee!");
+                e = {
+                        {"1", "Espressor current quantities:"},
+                        {"water", espressorDetails[0]},
+                        {"milk", espressorDetails[1]},
+                        {"coffee", espressorDetails[2]},
+                        {"filters_usage_rate", espressorDetails[3]}
+                };
             }
+
+            std::string s = e.dump();
+            response.send(Http::Code::Ok, s);
+        }
+
+    }
+
+
+    // Get ingredients details of one explicit coffee
+    void getCoffeeIngredients(const Rest::Request &request, Http::ResponseWriter response) {
+        string property = "nothing";
+        string coffeeName = request.param(":coffeeName").as<string>();
+
+        if (request.hasParam(":property")) {
+            auto propertyName = request.param(":property");
+            property = propertyName.as<string>();
+        }
+
+        std::vector<std::string> coffeeDetails = esp.getCoffee(coffeeName, property);
+
+        if (coffeeDetails[0] == "coffee_not_found") {
+            response.send(Http::Code::Not_Found, "Our espressor can not make this type of coffee...");
+        } else if (coffeeDetails[0] == "property_not_found") {
+            response.send(Http::Code::Not_Found, "The type of coffee that you requested does not have this property...");
         } else {
-            response.send(Http::Code::No_Content,
-                          "You must choose if you want details about the espressor current quantities or about one specific type of coffee!");
+            Guard guard(EspressorLock);
+            // call decrease function and check/notice if there's any/not much water/milk/coffee left
+
+            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+            using namespace Http;
+            response.headers()
+                    .add<Header::Server>("pistache/0.1")
+                    .add<Header::ContentType>(MIME(Application, Json));
+
+            json c = {};
+
+            if (coffeeDetails.size() == 1) {
+                c = {
+                        {"1", "The quantity of " + property + " needed for " + coffeeName + " is:"},
+                        {property, coffeeDetails[0]}
+                };
+            } else {
+                c = {
+                        {"1", "The quantities needed for " + coffeeName + " are:"},
+                        {"water", coffeeDetails[0]},
+                        {"milk", coffeeDetails[1]},
+                        {"coffee", coffeeDetails[2]},
+                        {"time", coffeeDetails[3]}
+                };
+            }
+
+            std::string s = c.dump();
+
+            response.send(Http::Code::Ok, s);
         }
     }
+
 
     // Get current espressor quantities function
     void getNumberOfCoffees(const Rest::Request &request, Http::ResponseWriter response) {
