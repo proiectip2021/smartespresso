@@ -14,6 +14,7 @@
 #include <string>
 #include <cmath>
 #include <ctime>
+#include <typeinfo>
 
 #include <pistache/net.h>
 #include <pistache/http.h>
@@ -108,9 +109,7 @@ private:
 
 
         // Prepare and choose your coffee route
-        Routes::Post(router, "/options/:name", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
-        Routes::Post(router, "/options/:name/:water/:milk/:coffee",
-                     Routes::bind(&EspressorEndpoint::chooseCoffee, this));
+        Routes::Post(router, "/options", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
     }
 
     // One common route function for details about both espressor and explicit coffee
@@ -266,7 +265,6 @@ private:
         }
     }
 
-
     // Get current espressor quantities function
     void getNumberOfCoffees(const Rest::Request &request, Http::ResponseWriter response) {
         string property = "nothing";
@@ -369,6 +367,7 @@ private:
             if (reqBody.size() > 2) {
                 response.send(Http::Code::Bad_Request, "Your request contains unnecessary properties. Check again!");
             }
+
             if (reqBody.contains("refill")) {
                 refill = reqBody.value("refill", "all");
 
@@ -421,64 +420,70 @@ private:
         }
     }
 
-
     void chooseCoffee(const Rest::Request& request, Http::ResponseWriter response) {
-        auto name = request.param(":name").as<string>();
+        if (!request.body().empty()) {
+            auto reqBody = json::parse(request.body());
 
-        int water = 0;
-        if (request.hasParam(":water")) {
-            auto waterValue = request.param(":water");
-            water = waterValue.as<double>();
-        } else if (name == "your_choice") {
-            response.send(Http::Code::No_Content, "You need to introduce water, milk and coffee for this option. If you don't want one of these just introduce 0.");
-        }
+            if (reqBody.size() > 4) {
+                response.send(Http::Code::Bad_Request, "Your request contains unnecessary properties. Check again!");
+            }
 
-        int milk = 0;
-        if (request.hasParam(":milk")) {
-            auto milkValue = request.param(":milk");
-            milk = milkValue.as<double>();
-        } else if (name == "your_choice") {
-            response.send(Http::Code::No_Content, "You need to introduce water, milk and coffee for this option. If you don't want one of these just introduce 0.");
-        }
+            for (auto& x : reqBody.items()) {
+                if ((x.key() != "name") && (x.key() != "coffee") && (x.key() != "water") && (x.key() != "milk")) {
+                    response.send(Http::Code::Bad_Request, x.key() + " is not a valid property.");
+                } else {
+                    if (x.key() != "name") {
+                        if (x.value().is_number() != 1) {
+                            response.send(Http::Code::Bad_Request, x.key() + " should be a number");
+                        }
+                    } else {
+                        if (x.value().is_string() != 1) {
+                            response.send(Http::Code::Bad_Request, x.key() + " should be a string");
+                        }
+                    }
+                }
+            }
 
-        int coffee = 0;
-        if (request.hasParam(":coffee")) {
-            auto coffeeValue = request.param(":coffee");
-            coffee = coffeeValue.as<double>();
-        } else if (name == "your_choice") {
-            response.send(Http::Code::No_Content, "You need to introduce water, milk and coffee for this option. If you don't want one of these just introduce 0.");
-        }
+            string name = reqBody.value("name", "nothing");
+            int coffee = reqBody.value("coffee", 0);
+            int milk = reqBody.value("milk", 0);
+            int water = reqBody.value("water", 0);
 
-        std::vector<std::string> chosenCoffee = esp.getChosenCoffee(name, milk, water, coffee);
+            std::vector<std::string> chosenCoffee = esp.getChosenCoffee(name, milk, water, coffee);
 
-        if (chosenCoffee[0] == "not_found") {
-            response.send(Http::Code::Not_Found, "We don't have a " + name + " option in our menu.");
-        } else if (chosenCoffee[0] == "bad_request") {
-            response.send(Http::Code::Bad_Request, "You can't set water, milk or coffee for " + name + ".");
-        } else if (chosenCoffee[0] == "empty_request") {
-            response.send(Http::Code::No_Content, "Ok then! No coffee for you.");
+            if (chosenCoffee[0] == "not_found") {
+                response.send(Http::Code::Not_Found, "We don't have a " + name + " option in our menu.");
+            } else if (chosenCoffee[0] == "bad_request") {
+                response.send(Http::Code::Bad_Request, "You can't set water, milk or coffee for " + name + ".");
+            } else if (chosenCoffee[0] == "empty_request") {
+                response.send(Http::Code::No_Content, "Ok then! No coffee for you.");
+            } else if (chosenCoffee[0] == "no_negatives") {
+                response.send(Http::Code::Bad_Request, "You can't introduce negative values.");
+            } else {
+                Guard guard(EspressorLock);
+                // call decrease function and check/notice if there's any/not much water/milk/coffee left
+
+                // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+                using namespace Http;
+                response.headers()
+                        .add<Header::Server>("pistache/0.1")
+                        .add<Header::ContentType>(MIME(Application, Json));
+
+                // add in json how much time it takes
+                // if there's any/not much water/milk/coffee left add in json
+                // if there is enough milk, water, coffee for my order then send it else send an error response
+                json j = {
+                        {"milk", chosenCoffee[0]},
+                        {"water", chosenCoffee[1]},
+                        {"coffee", chosenCoffee[2]}
+                };
+                std::string s = j.dump();
+                time_t now = time(0);
+                esp.count_coffee(now);
+                response.send(Http::Code::Ok, s);
+            }
         } else {
-            Guard guard(EspressorLock);
-            // call decrease function and check/notice if there's any/not much water/milk/coffee left
-
-            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
-            using namespace Http;
-            response.headers()
-                    .add<Header::Server>("pistache/0.1")
-                    .add<Header::ContentType>(MIME(Application, Json));
-
-            // add in json how much time it takes
-            // if there's any/not much water/milk/coffee left add in json
-            // if there is enough milk, water, coffee for my order then send it else send an error response
-            json j = {
-                    {"milk", chosenCoffee[0]},
-                    {"water", chosenCoffee[1]},
-                    {"coffee", chosenCoffee[2]}
-            };
-            std::string s = j.dump();
-            time_t now = time(0);
-            esp.count_coffee(now);
-            response.send(Http::Code::Ok, s);
+            response.send(Http::Code::No_Content, "Please enter the name of the coffee or the word your_choice followed by quantities of coffee, milk and water.");
         }
     }
 
@@ -733,39 +738,46 @@ private:
         // Getter for chosenCoffee route
         std::vector<std::string> getChosenCoffee(string name, double milk, double water, double coffee) {
             std::vector<std::string> response;
-            if (name != "your_choice") {
-                if (milk != 0 or water != 0 or coffee != 0) {
-                    response.emplace_back("bad_request");
+            if (name != "your_choice" && name != "back_coffee" && name != "espresso" && name != "flat_white" && name != "cappuccino") {
+                response.emplace_back("not_found");
+            } else {
+                if (milk < 0 || water < 0 || coffee < 0) {
+                    response.emplace_back("no_negatives");
                 } else {
-                    if (name == "black_coffee") {
-                        response.emplace_back(std::to_string(possible_choices.black_coffee.milk.quant));
-                        response.emplace_back(std::to_string(possible_choices.black_coffee.water.quant));
-                        response.emplace_back(std::to_string(possible_choices.black_coffee.coffee.quant));
-                    } else if (name == "espresso") {
-                        response.emplace_back(std::to_string(possible_choices.espresso.milk.quant));
-                        response.emplace_back(std::to_string(possible_choices.espresso.water.quant));
-                        response.emplace_back(std::to_string(possible_choices.espresso.coffee.quant));
-                    } else if (name == "cappuccino") {
-                        response.emplace_back(std::to_string(possible_choices.cappuccino.milk.quant));
-                        response.emplace_back(std::to_string(possible_choices.cappuccino.water.quant));
-                        response.emplace_back(std::to_string(possible_choices.cappuccino.coffee.quant));
-                    } else if (name == "flat_white") {
-                        response.emplace_back(std::to_string(possible_choices.flat_white.milk.quant));
-                        response.emplace_back(std::to_string(possible_choices.flat_white.water.quant));
-                        response.emplace_back(std::to_string(possible_choices.flat_white.coffee.quant));
+                    if (name != "your_choice") {
+                        if (milk != 0 or water != 0 or coffee != 0) {
+                            response.emplace_back("bad_request");
+                        } else {
+                            if (name == "black_coffee") {
+                                response.emplace_back(std::to_string(possible_choices.black_coffee.milk.quant));
+                                response.emplace_back(std::to_string(possible_choices.black_coffee.water.quant));
+                                response.emplace_back(std::to_string(possible_choices.black_coffee.coffee.quant));
+                            } else if (name == "espresso") {
+                                response.emplace_back(std::to_string(possible_choices.espresso.milk.quant));
+                                response.emplace_back(std::to_string(possible_choices.espresso.water.quant));
+                                response.emplace_back(std::to_string(possible_choices.espresso.coffee.quant));
+                            } else if (name == "cappuccino") {
+                                response.emplace_back(std::to_string(possible_choices.cappuccino.milk.quant));
+                                response.emplace_back(std::to_string(possible_choices.cappuccino.water.quant));
+                                response.emplace_back(std::to_string(possible_choices.cappuccino.coffee.quant));
+                            } else if (name == "flat_white") {
+                                response.emplace_back(std::to_string(possible_choices.flat_white.milk.quant));
+                                response.emplace_back(std::to_string(possible_choices.flat_white.water.quant));
+                                response.emplace_back(std::to_string(possible_choices.flat_white.coffee.quant));
+                            }
+                        }
                     } else {
-                        response.emplace_back("not_found");
+                        if (milk == 0 and water == 0 and coffee == 0) {
+                            response.emplace_back("empty_request");
+                        } else {
+                            response.emplace_back(std::to_string(milk));
+                            response.emplace_back(std::to_string(water));
+                            response.emplace_back(std::to_string(coffee));
+                        }
                     }
                 }
-            } else {
-                if (milk == 0 and water == 0 and coffee == 0) {
-                    response.emplace_back("empty_request");
-                } else {
-                    response.emplace_back(std::to_string(milk));
-                    response.emplace_back(std::to_string(water));
-                    response.emplace_back(std::to_string(coffee));
-                }
             }
+
 
             return response;
         }
