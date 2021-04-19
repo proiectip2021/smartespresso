@@ -114,15 +114,20 @@ private:
 
     // Get details of  current quantities
     void getCurrentQuantities(const Rest::Request &request, Http::ResponseWriter response) {
-        string property = "nothing";
+        string property = "nothing";    // default value
 
+        // check if there is a property parameter given
+        // if not -> we'll return all the current quantities of espressor
         if (request.hasParam(":property")) {
             auto propertyName = request.param(":property");
             property = propertyName.as<string>();
         }
 
+        // get the current quantities details
+        // call the getter function with parameter 'route' = 0 to know what info to return
         std::vector<std::string> espressorDetails = esp.getEspressor(0, property);
 
+        // check if we found the given property
         if (espressorDetails[0] == "property_not_found") {
             response.send(Http::Code::Not_Found, "Our espressor does not have a '" + property + "' property.");
         }
@@ -138,12 +143,15 @@ private:
 
             json e = {};
 
+            // there was a property parameter given
             if (espressorDetails.size() == 1) {
                 e = {
                         {"1", "Espressor's " + property + ":"},
                         {property, espressorDetails[0]}
                 };
-            } else {
+            }
+            // else show all the current quantities
+            else {
                 e = {
                         {"1", "Espressor current quantities:"},
                         {"water", espressorDetails[0]},
@@ -162,9 +170,11 @@ private:
 
     // Get ingredients details of one explicit coffee
     void getCoffeeIngredients(const Rest::Request &request, Http::ResponseWriter response) {
-        string property = "nothing";
-        string coffeeName = request.param(":coffeeName").as<string>();
+        string property = "nothing";    // default value
+        string coffeeName = request.param(":coffeeName").as<string>();      // required parameter
 
+        // check if there is a property parameter given
+        // if not -> we'll return all the needed ingredients of given coffee type
         if (request.hasParam(":property")) {
             auto propertyName = request.param(":property");
             property = propertyName.as<string>();
@@ -172,9 +182,12 @@ private:
 
         std::vector<std::string> coffeeDetails = esp.getCoffee(coffeeName, property);
 
+        // invalid coffee type given
         if (coffeeDetails[0] == "coffee_not_found") {
             response.send(Http::Code::Not_Found, "Our espressor can not make this type of coffee...");
-        } else if (coffeeDetails[0] == "property_not_found") {
+        }
+        // invalid property given
+        else if (coffeeDetails[0] == "property_not_found") {
             response.send(Http::Code::Not_Found, "The type of coffee that you requested does not have this property...");
         } else {
             Guard guard(EspressorLock);
@@ -188,12 +201,15 @@ private:
 
             json c = {};
 
+            // valid property parameter given
             if (coffeeDetails.size() == 1) {
                 c = {
                         {"1", "The quantity of " + property + " needed for " + coffeeName + " is:"},
                         {property, coffeeDetails[0]}
                 };
-            } else {
+            }
+            // no property -> return them all
+            else {
                 c = {
                         {"1", "The quantities needed for " + coffeeName + " are:"},
                         {"water", coffeeDetails[0]},
