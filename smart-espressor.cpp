@@ -91,8 +91,6 @@ private:
         // Generally say that when http://localhost:9080/ready is called, the handleReady function should be called.
         Routes::Get(router, "/ready", Routes::bind(&Generic::handleReady));
         Routes::Get(router, "/auth", Routes::bind(&EspressorEndpoint::doAuth, this));
-//        Routes::Post(router, "/settings/:settingName/:value", Routes::bind(&EspressorEndpoint::setSetting, this));
-//        Routes::Get(router, "/settings/:settingName/", Routes::bind(&EspressorEndpoint::getSetting, this));
 
         // Get details about espressor quantities or one explicit coffee
         Routes::Get(router, "/details", Routes::bind(&EspressorEndpoint::getDetails,
@@ -144,7 +142,7 @@ private:
                     property = reqBody.value("property", "nothing");
 
                     // getting the espressor details
-                    std::vector<std::string> espressorDetails = esp.getEspressor(property);
+                    std::vector<std::string> espressorDetails = esp.getEspressor(0,  property);
 
                     // no property found with that name => "Not_Found" response
                     if (espressorDetails[0] == "property_not_found") {
@@ -274,7 +272,7 @@ private:
             property = reqBody.value("property", "nothing");
         }
 
-        std::vector<std::string> coffeeCount = esp.getEspressor(property);
+        std::vector<std::string> coffeeCount = esp.getEspressor(1, property);
 
         if (coffeeCount[0] == "property_not_found") {
             response.send(Http::Code::Not_Found, "Our espressor does not have a '" + property + "' property.");
@@ -510,7 +508,7 @@ private:
         }
 
         // Getter for espressor details
-        std::vector<std::string> getEspressor(string propertyName = "nothing") {
+        std::vector<std::string> getEspressor(int route = 0, string propertyName = "nothing") {
             std::vector<std::string> response;
             double water = 0;
             double milk = 0;
@@ -518,38 +516,41 @@ private:
             int filters = 0;
             int coffees = 0;
 
-            if (propertyName == "nothing") {
-                water = espressor_details.current_water.quant;
-                milk = espressor_details.current_milk.quant;
-                coffee = espressor_details.current_coffee.quant;
-                filters = round(espressor_details.filters_usage.quant);
+            // function been called from "get number of coffees made today" route
+            if (route == 1)  {
                 coffees = round(espressor_details.coffees_today.number_today);
-
-                cout << water << " " << milk << " " << coffee << " " << filters << " " << coffees;
-
-                response.emplace_back(std::to_string(water));
-                response.emplace_back(std::to_string(milk));
-                response.emplace_back(std::to_string(coffee));
-                response.emplace_back(std::to_string(filters));
                 response.emplace_back(std::to_string(coffees));
-            } else {
-                if (propertyName == "water") {
+            }
+            // function been called from "get current espressor quantities" route
+            else {
+                if (propertyName == "nothing") {
                     water = espressor_details.current_water.quant;
-                    response.emplace_back(std::to_string(water));
-                } else if (propertyName == "milk") {
                     milk = espressor_details.current_milk.quant;
-                    response.emplace_back(std::to_string(milk));
-                } else if (propertyName == "coffee") {
                     coffee = espressor_details.current_coffee.quant;
-                    response.emplace_back(std::to_string(coffee));
-                } else if (propertyName == "filters_usage") {
                     filters = round(espressor_details.filters_usage.quant);
+
+                    // cout << water << " " << milk << " " << coffee << " " << filters;
+
+                    response.emplace_back(std::to_string(water));
+                    response.emplace_back(std::to_string(milk));
+                    response.emplace_back(std::to_string(coffee));
                     response.emplace_back(std::to_string(filters));
-                } else if (propertyName == "coffees_today") {
-                    coffees = round(espressor_details.coffees_today.number_today);
-                    response.emplace_back(std::to_string(coffees));
                 } else {
-                    response.emplace_back("property_not_found");
+                    if (propertyName == "water") {
+                        water = espressor_details.current_water.quant;
+                        response.emplace_back(std::to_string(water));
+                    } else if (propertyName == "milk") {
+                        milk = espressor_details.current_milk.quant;
+                        response.emplace_back(std::to_string(milk));
+                    } else if (propertyName == "coffee") {
+                        coffee = espressor_details.current_coffee.quant;
+                        response.emplace_back(std::to_string(coffee));
+                    } else if (propertyName == "filters_usage") {
+                        filters = round(espressor_details.filters_usage.quant);
+                        response.emplace_back(std::to_string(filters));
+                    } else {
+                        response.emplace_back("property_not_found");
+                    }
                 }
             }
 
