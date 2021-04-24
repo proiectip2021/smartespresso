@@ -228,13 +228,14 @@ private:
 
     // Get current espressor quantities function
     void getNumberOfCoffees(const Rest::Request &request, Http::ResponseWriter response) {
-        string property = "nothing";
+        string property = "coffee counter";
 
         if (!request.body().empty()) {
             auto reqBody = json::parse(request.body());
             property = reqBody.value("property", "nothing");
         }
-
+        time_t now = time(0);
+        esp.reset_coffee_counter(now);
         std::vector<std::string> coffeeCount = esp.getEspressor(1, property);
 
         if (coffeeCount[0] == "property_not_found") {
@@ -258,7 +259,7 @@ private:
                 };
             } else {
                 e = {
-                        {"Number coffees made today", coffeeCount[4]}
+                        {"Number coffees made today", coffeeCount[0]}
                 };
             }
 
@@ -667,8 +668,7 @@ private:
             return response;
         }
 
-        void count_coffee(time_t day){
-//            time_t t = time(NULL);
+        bool same_day(time_t day){
             tm* timePtr = localtime(&day);
             int new_month = timePtr->tm_mon;
             int new_day = timePtr->tm_mday;
@@ -679,24 +679,68 @@ private:
             int current_month = currentTime->tm_mon;
             int current_day = currentTime->tm_mday;
             int current_year = currentTime->tm_year+ 1900;
-            if (current_year!=new_year){
-                espressor_details.coffees_today.number_today = 1;
-                espressor_details.coffees_today.day = day;
+            if (current_year!=new_year)
+            {
+                return false;
             }
             else if(current_year==new_year && current_month!=new_month)
             {
-                espressor_details.coffees_today.number_today = 1;
-                espressor_details.coffees_today.day = day;
+                return false;
             } else if (current_day!=new_day && current_month==new_month && current_year==new_year)
             {
-                espressor_details.coffees_today.number_today = 1;
-                espressor_details.coffees_today.day = day;
+                return false;
             }
-            else if (current_day==new_day && current_month==new_month && current_year==new_year)
+//            else if (current_day==new_day && current_month==new_month && current_year==new_year)
+//            {
+            return true;
+//            }
+//            return false;
+        }
+
+        void reset_coffee_counter(time_t day){
+            if (!same_day(day)) {
+                espressor_details.coffees_today.number_today = 0;
+            }
+        }
+
+        void count_coffee(time_t day){
+//            time_t t = time(NULL);
+//            tm* timePtr = localtime(&day);
+//            int new_month = timePtr->tm_mon;
+//            int new_day = timePtr->tm_mday;
+//            int new_year = timePtr->tm_year+ 1900;
+//            time_t old_day = espressor_details.coffees_today.day;
+//            int nr_coffees = espressor_details.coffees_today.number_today;
+//            tm* currentTime = localtime(&old_day);
+//            int current_month = currentTime->tm_mon;
+//            int current_day = currentTime->tm_mday;
+//            int current_year = currentTime->tm_year+ 1900;
+//            if (current_year!=new_year){
+//                espressor_details.coffees_today.number_today = 1;
+//                espressor_details.coffees_today.day = day;
+//            }
+//            else if(current_year==new_year && current_month!=new_month)
+//            {
+//                espressor_details.coffees_today.number_today = 1;
+//                espressor_details.coffees_today.day = day;
+//            } else if (current_day!=new_day && current_month==new_month && current_year==new_year)
+//            {
+//                espressor_details.coffees_today.number_today = 1;
+//                espressor_details.coffees_today.day = day;
+//            }
+//            else if (current_day==new_day && current_month==new_month && current_year==new_year)
+//            {
+//                espressor_details.coffees_today.number_today += 1;
+//            }
+            if (same_day(day))
             {
                 espressor_details.coffees_today.number_today += 1;
             }
-
+            else
+            {
+                espressor_details.coffees_today.number_today = 1;
+                espressor_details.coffees_today.day = day;
+            }
         }
 
         // Getter for chosenCoffee route
