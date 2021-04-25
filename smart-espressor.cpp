@@ -291,22 +291,28 @@ private:
 
                     std::vector<std::string> waterDetails = esp.getBoilWater(amountWater);
 
-                    Guard guard(EspressorLock);
+                    std::vector<double> verifyWater = esp.verifyQuantity("water", amountWater);
 
-                    using namespace Http;
-                    response.headers()
-                            .add<Header::Server>("pistache/0.1")
-                            .add<Header::ContentType>(MIME(Application, Json));
+                    if( verifyWater[0] == 1) {
+                        esp.setDecrease("water", verifyWater[1]);
+                        Guard guard(EspressorLock);
 
-                    json e = {};
+                        using namespace Http;
+                        response.headers()
+                                .add<Header::Server>("pistache/0.1")
+                                .add<Header::ContentType>(MIME(Application, Json));
 
-                    e = {
-                            {"1", "The water will be ready in  " + waterDetails[0] + " minutes!"}
-                    };
+                        json e = {};
 
-                    std::string s = e.dump();
-                    response.send(Http::Code::Ok, s);
+                        e = {
+                                {"1", "The water will be ready in  " + waterDetails[0] + " minutes!"}
+                        };
 
+                        std::string s = e.dump();
+                        response.send(Http::Code::Ok, s);
+                    } else {
+                        response.send(Http::Code::Bad_Request, "Not enough water.");
+                    }
 
                 } else {
                     response.send(Http::Code::No_Content, "No details available. Enter a quantity of water!");
@@ -422,27 +428,52 @@ private:
             } else if (chosenCoffee[0] == "no_negatives") {
                 response.send(Http::Code::Bad_Request, "You can't introduce negative values.");
             } else {
-                Guard guard(EspressorLock);
-                // call decrease function and check/notice if there's any/not much water/milk/coffee left
 
-                // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
-                using namespace Http;
-                response.headers()
-                        .add<Header::Server>("pistache/0.1")
-                        .add<Header::ContentType>(MIME(Application, Json));
+                std::vector<double> verifyCoffee = esp.verifyQuantity("coffee", coffee);
+                std::vector<double> verifyWater = esp.verifyQuantity("water", water);
+                std::vector<double> verifyMilk = esp.verifyQuantity("milk", milk);
 
-                // add in json how much time it takes
-                // if there's any/not much water/milk/coffee left add in json
-                // if there is enough milk, water, coffee for my order then send it else send an error response
-                json j = {
-                        {"milk", chosenCoffee[0]},
-                        {"water", chosenCoffee[1]},
-                        {"coffee", chosenCoffee[2]}
-                };
-                std::string s = j.dump();
-                time_t now = time(0);
-                esp.count_coffee(now);
-                response.send(Http::Code::Ok, s);
+                if(verifyCoffee[0] == 1 && verifyMilk[0] == 1 && verifyWater[0] == 1) {
+                    esp.setDecrease("coffee", verifyCoffee[1]);
+                    esp.setDecrease("water", verifyWater[1]);
+                    esp.setDecrease("milk", verifyMilk[1]);
+                    Guard guard(EspressorLock);
+                    // call decrease function and check/notice if there's any/not much water/milk/coffee left
+
+                    // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+                    using namespace Http;
+                    response.headers()
+                            .add<Header::Server>("pistache/0.1")
+                            .add<Header::ContentType>(MIME(Application, Json));
+
+                    // add in json how much time it takes
+                    // if there's any/not much water/milk/coffee left add in json
+                    // if there is enough milk, water, coffee for my order then send it else send an error response
+                    json j = {
+                            {"milk",   chosenCoffee[0]},
+                            {"water",  chosenCoffee[1]},
+                            {"coffee", chosenCoffee[2]}
+                    };
+                    std::string s = j.dump();
+                    time_t now = time(0);
+                    esp.count_coffee(now);
+                    response.send(Http::Code::Ok, s);
+                } else if(verifyCoffee[0] == 0 && verifyMilk[0] == 1 && verifyWater[0] == 1) {
+                    response.send(Http::Code::Bad_Request, "Not enough coffee.");
+                } else if(verifyCoffee[0] == 1 && verifyMilk[0] == 0 && verifyWater[0] == 1) {
+                    response.send(Http::Code::Bad_Request, "Not enough milk.");
+                } else if(verifyCoffee[0] == 1 && verifyMilk[0] == 1 && verifyWater[0] == 0) {
+                    response.send(Http::Code::Bad_Request, "Not enough water.");
+                } else if(verifyCoffee[0] == 0 && verifyMilk[0] == 0 && verifyWater[0] == 1) {
+                    response.send(Http::Code::Bad_Request, "Not enough coffee and milk.");
+                } else if(verifyCoffee[0] == 0 && verifyMilk[0] == 1 && verifyWater[0] == 0) {
+                    response.send(Http::Code::Bad_Request, "Not enough coffee and water.");
+                } else if(verifyCoffee[0] == 1 && verifyMilk[0] == 0 && verifyWater[0] == 0) {
+                    response.send(Http::Code::Bad_Request, "Not enough milk and water.");
+                } else if(verifyCoffee[0] == 0 && verifyMilk[0] == 0 && verifyWater[0] == 0) {
+                    response.send(Http::Code::Bad_Request, "Not enough coffee, milk and water.");
+                }
+
             }
         } else {
             response.send(Http::Code::No_Content, "Please enter the name of the coffee or the word your_choice followed by quantities of coffee, milk and water.");
@@ -790,6 +821,50 @@ private:
             return response;
         }
 
+        std::vector<double> verifyQuantity(string property, int quantity) {
+            std::vector<double> response;
+
+            if(property == "coffee") {
+                if (espressor_details.current_coffee.quant - quantity >= 0) {
+                    response.emplace_back(double(1));
+                    response.emplace_back(double(espressor_details.current_coffee.quant - quantity));
+                } else {
+                    response.emplace_back(double(0));
+                    response.emplace_back(double(espressor_details.current_coffee.quant - quantity));
+                }
+            } else if(property == "water") {
+                if(espressor_details.current_water.quant - quantity >= 0) {
+                    response.emplace_back(double (1));
+                    response.emplace_back(double (espressor_details.current_water.quant - quantity));
+                }
+                else {
+                    response.emplace_back(double (0));
+                    response.emplace_back(double (espressor_details.current_water.quant - quantity));
+                }
+            } else if(property == "milk") {
+                if(espressor_details.current_milk.quant - quantity >= 0) {
+                    response.emplace_back(double (1));
+                    response.emplace_back(double (espressor_details.current_milk.quant - quantity));
+                }
+                else {
+                    response.emplace_back(double (0));
+                    response.emplace_back(double (espressor_details.current_milk.quant - quantity));
+                }
+            }
+
+            return response;
+        }
+
+        void setDecrease ( string property, double quantity) {
+            if( property == "coffee") {
+                espressor_details.current_coffee.quant = quantity;
+            } else if( property == "milk") {
+                espressor_details.current_milk.quant = quantity;
+            } else if ( property == "water") {
+                espressor_details.current_water.quant = quantity;
+            }
+        }
+
     private:
         double boiling_water = 5; // in minutes
 
@@ -825,12 +900,6 @@ private:
             coffee your_choice = {0, 0, 0, 0};
         } possible_choices;
 
-
-
-//        struct boolSetting {
-//            string name;
-//            int value;
-//        } defrost;
     };
 
     // Create the lock which prevents concurrent editing of the same variable
@@ -885,7 +954,7 @@ int main(int argc, char *argv[]) {
     stats.start();
 
 
-    // Code that waits for the shutdown sinal for the server
+    // Code that waits for the shutdown signal for the server
     int signal = 0;
     int status = sigwait(&signals, &signal);
     if (status == 0)
