@@ -103,9 +103,9 @@ private:
         Routes::Get(router, "/details/stats", Routes::bind(&EspressorEndpoint::getNumberOfCoffees, this));     // Get the number of coffees made today
 
         // Espressor's functionalities
-        Routes::Get(router, "/boilWater", Routes::bind(&EspressorEndpoint::boilWater, this)); //Boil water
+        Routes::Post(router, "/boilWater", Routes::bind(&EspressorEndpoint::boilWater, this)); //Boil water
 
-        Routes::Get(router, "/refill", Routes::bind(&EspressorEndpoint::refill, this)); // Refill espressor quantities
+        Routes::Post(router, "/refill", Routes::bind(&EspressorEndpoint::refill, this)); // Refill espressor quantities
 
 
         // Prepare and choose your coffee route
@@ -276,20 +276,26 @@ private:
         if (!request.body().empty()) {
             auto reqBody = json::parse(request.body());
 
+            if (reqBody.size() > 1) {
+                response.send(Http::Code::Bad_Request,
+                              "Your request contains unnecessary properties. Check again!");
+            }
+
 
             if (reqBody.contains("amountWater")) {
+                for (auto& x : reqBody.items()) {
+                    if (x.key() == "amountWater") {
+                        if(x.value().is_number() != 1)
+                            response.send(Http::Code::Bad_Request,  "Amount of water must be a number! ");
+                    }
+                }
+
                 amountWater = reqBody.value("amountWater", 0);
 
 
-                if (amountWater != 0) {
+                if (amountWater > 0) {
 
-                    if (reqBody.size() > 1) {
-                        response.send(Http::Code::Bad_Request,
-                                      "Your request contains unnecessary properties. Check again!");
-                    }
-
-
-                    std::vector<std::string> waterDetails = esp.getBoilWater(amountWater);
+                    std::vector<std::string> waterDetails = esp.getBoilWaterTime(amountWater);
 
                     std::vector<double> verifyWater = esp.verifyQuantity("water", amountWater);
 
@@ -315,7 +321,7 @@ private:
                     }
 
                 } else {
-                    response.send(Http::Code::No_Content, "No details available. Enter a quantity of water!");
+                    response.send(Http::Code::No_Content, "No details available. Enter a correct quantity of water!");
                 }
             } else {
                 response.send(Http::Code::Bad_Request, "You must enter the amount of water! (amountWater)");
@@ -332,11 +338,17 @@ private:
             auto reqBody = json::parse(request.body());
 
 
-            if (reqBody.size() > 2) {
+            if (reqBody.size() > 1) {
                 response.send(Http::Code::Bad_Request, "Your request contains unnecessary properties. Check again!");
             }
 
             if (reqBody.contains("refill")) {
+                for (auto& x : reqBody.items()) {
+                    if (x.key() == "refill") {
+                        if(x.value().is_string() != 1)
+                            response.send(Http::Code::Bad_Request,  "You must enter the property for which you want to refill: water, milk, coffee, filters_usage or all!");
+                    }
+                }
                 refill = reqBody.value("refill", "all");
 
                 esp.setMakeRefill(refill);
@@ -619,7 +631,7 @@ private:
 
         }
 
-        std::vector<std::string> getBoilWater(int amountWater) {
+        std::vector<std::string> getBoilWaterTime(int amountWater) {
             std::vector<std::string> response;
             int time = 0;
             int unit = 2;
@@ -633,6 +645,7 @@ private:
             response.emplace_back(std::to_string(time));
             return response;
         }
+
 
 
         // Getter for details of one explicit coffee
@@ -866,7 +879,7 @@ private:
         }
 
     private:
-        double boiling_water = 5; // in minutes
+//        double boiling_water = 5; // in minutes
 
         struct quantity {
             double quant;
