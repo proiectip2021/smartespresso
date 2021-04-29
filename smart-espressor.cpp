@@ -110,6 +110,11 @@ private:
 
         // Prepare and choose your coffee route
         Routes::Post(router, "/options", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
+
+        // Prepare coffee with alarm
+        Routes::Post(router, "/alarm", Routes::bind(&EspressorEndpoint::makeAlarmCoffee, this));
+        Routes::Get(router, "/alarm/defaultCoffee", Routes::bind(&EspressorEndpoint::showDefaultCoffee, this));
+        Routes::Post(router, "/alarm/defaultCoffee", Routes::bind(&EspressorEndpoint::setDefaultCoffee, this));
     }
 
     // Get details of  current quantities
@@ -150,7 +155,7 @@ private:
                         {property, espressorDetails[0]}
                 };
             }
-            // else show all the current quantities
+                // else show all the current quantities
             else {
                 e = {
                         {"1", "Espressor current quantities:"},
@@ -186,7 +191,7 @@ private:
         if (coffeeDetails[0] == "coffee_not_found") {
             response.send(Http::Code::Not_Found, "Our espressor can not make this type of coffee...");
         }
-        // invalid property given
+            // invalid property given
         else if (coffeeDetails[0] == "property_not_found") {
             response.send(Http::Code::Not_Found, "The type of coffee that you requested does not have this property...");
         } else {
@@ -208,7 +213,7 @@ private:
                         {property, coffeeDetails[0]}
                 };
             }
-            // no property -> return them all
+                // no property -> return them all
             else {
                 c = {
                         {"1", "The quantities needed for " + coffeeName + " are:"},
@@ -492,6 +497,139 @@ private:
         }
     }
 
+
+    void showDefaultCoffee(const Rest::Request& request, Http::ResponseWriter response) {
+        string property = "nothing";
+
+        if (!request.body().empty()) {
+            auto reqBody = json::parse(request.body());
+            property = reqBody.value("property", "nothing");
+        }
+
+        std::vector<std::string> defaultCoffee = esp.getDefaultCoffee();
+
+        Guard guard(EspressorLock);
+
+        // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+        using namespace Http;
+        response.headers()
+                .add<Header::Server>("pistache/0.1")
+                .add<Header::ContentType>(MIME(Application, Json));
+
+        json j = {
+                {"defaultCoffee_name", defaultCoffee[0]},
+                {"defaultCoffee_milk", defaultCoffee[1]},
+                {"defaultCoffee_water", defaultCoffee[2]},
+                {"defaultCoffee_coffee", defaultCoffee[3]}
+        };
+
+
+        std::string s = j.dump();
+        response.send(Http::Code::Ok, s);
+
+    }
+
+    void setDefaultCoffee(const Rest::Request& request, Http::ResponseWriter response) {
+
+        if (!request.body().empty()){
+            auto reqBody = json::parse(request.body());
+
+            if (reqBody.size() > 4) {
+                response.send(Http::Code::Bad_Request, "Your request contains unnecessary properties. Check again!");
+            }
+
+            for (auto& x : reqBody.items()) {
+                if ((x.key() != "name") && (x.key() != "coffee") && (x.key() != "water") && (x.key() != "milk")) {
+                    response.send(Http::Code::Bad_Request, x.key() + " is not a valid property.");
+                } else {
+                    if (x.key() != "name") {
+                        if (x.value().is_number() != 1) {
+                            response.send(Http::Code::Bad_Request, x.key() + " should be a number");
+                        }
+                    } else {
+                        if (x.value().is_string() != 1) {
+                            response.send(Http::Code::Bad_Request, x.key() + " should be a string");
+                        }
+                    }
+                }
+            }
+
+            string name = reqBody.value("name", "default");
+            int milk = reqBody.value("milk", 0);
+            int water = reqBody.value("water", 0);
+            int coffee = reqBody.value("coffee", 0);
+
+            if ((name == "espresso" || name == "flat_white" || name == "black_coffee" || name == "cappuccino") && (milk != 0 || water != 0 || coffee != 0)){
+                response.send(Http::Code::Bad_Request,"This is a preset coffee!");
+            }
+
+            if (milk < 0 || water < 0 || coffee < 0){
+                response.send(Http::Code::Bad_Request, "You can't introduce negative values.");
+            }
+
+
+            bool ok = esp.setDefaultCoffee(name, milk, water, coffee);
+
+            if( ok == 1){
+                response.send(Http::Code::Accepted, "Default coffe has been set as " + name + ".");
+            }
+            else{
+                response.send(Http::Code::Not_Found, "Something went wrong!");
+            }
+
+            Guard guard(EspressorLock);
+
+            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+            using namespace Http;
+            response.headers()
+                    .add<Header::Server>("pistache/0.1")
+                    .add<Header::ContentType>(MIME(Application, Json));
+
+            json j = {
+                    {"newDefaultCoffe", name},
+                    {"defaultCoffee_milk", milk},
+                    {"defaultCoffee_water", water},
+                    {"defaultCoffee_coffee", coffee}
+            };
+
+
+            std::string s = j.dump();
+            response.send(Http::Code::Ok, s);
+
+
+        } else {
+            response.send(Http::Code::No_Content, "Please enter the name of the coffee(name*/milk/water/coffee)");
+        }
+
+    }
+
+
+
+    void makeAlarmCoffee(const Rest::Request& request, Http::ResponseWriter response){
+
+        std::vector<std::string> defCoffee;
+        defCoffee = esp.getDefaultCoffee(); //milk water coffee
+
+        Guard guard(EspressorLock);
+
+        // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+        using namespace Http;
+        response.headers()
+                .add<Header::Server>("pistache/0.1")
+                .add<Header::ContentType>(MIME(Application, Json));
+
+        json j = {
+                {"defaultCoffee_name", defCoffee[0]},
+                {"defaultCoffee_water", defCoffee[1]},
+                {"defaultCoffee_milk", defCoffee[2]},
+                {"defaultCoffee_coffee", defCoffee[3]}
+        };
+
+        std::string s = j.dump();
+        response.send(Http::Code::Ok, s);
+    }
+
+
     void doAuth(const Rest::Request& request, Http::ResponseWriter response) {
         // Function that prints cookies
         printCookies(request);
@@ -528,7 +666,7 @@ private:
                 coffees = round(espressor_details.coffees_today.number_today);
                 response.emplace_back(std::to_string(coffees));
             }
-            // function been called from "get current espressor quantities" route
+                // function been called from "get current espressor quantities" route
             else {
                 if (propertyName == "nothing") {
                     water = espressor_details.current_water.quant;
@@ -834,6 +972,57 @@ private:
             return response;
         }
 
+
+        std::vector<std::string> getDefaultCoffee(){
+            std::vector<std::string> response;
+            response.emplace_back(defaultCoffee.name);
+            response.emplace_back(std::to_string(defaultCoffee.ingredients.milk.quant));
+            response.emplace_back(std::to_string(defaultCoffee.ingredients.water.quant));
+            response.emplace_back(std::to_string(defaultCoffee.ingredients.coffee.quant));
+            return response;
+        }
+
+
+
+        bool setDefaultCoffee(string name_wanted, double milk_wanted = 0, double water_wanted = 0, double coffee_wanted = 0) {
+
+            bool ok = 0;
+            if (name_wanted == "black_coffee"){
+                defaultCoffee.name = "black_coffee";
+                defaultCoffee.ingredients = possible_choices.black_coffee;
+                ok = 1;
+            }
+            else if (name_wanted == "flat_white")
+            {
+                defaultCoffee.name = "flat_white";
+                defaultCoffee.ingredients = possible_choices.flat_white;
+                ok = 1;
+            }
+            else if (name_wanted == "espresso")
+            {
+                defaultCoffee.name = "espresso";
+                defaultCoffee.ingredients = possible_choices.espresso;
+                ok = 1;
+            }
+            else if (name_wanted == "cappuccino")
+            {
+                defaultCoffee.name = "cappuccino";
+                defaultCoffee.ingredients = possible_choices.cappuccino;
+                ok = 1;
+            }
+            else if (milk_wanted != 0 || water_wanted != 0 || coffee_wanted != 0)
+            {
+                defaultCoffee.name = name_wanted;
+                defaultCoffee.ingredients = {milk_wanted, water_wanted, coffee_wanted};
+                ok = 1;
+            }
+
+            return ok;  // daca se returneaza ok = 0 inseamnaca eroare si trebuie luata in considerare
+
+
+        }
+
+
         std::vector<double> verifyQuantity(string property, int quantity) {
             std::vector<double> response;
 
@@ -912,6 +1101,13 @@ private:
             coffee flat_white = {40, 20, 16, 10};
             coffee your_choice = {0, 0, 0, 0};
         } possible_choices;
+
+
+        struct defCoffee {
+            string name = "black_coffee";
+            choices possible_choices;
+            coffee ingredients = possible_choices.black_coffee;
+        } defaultCoffee;
 
     };
 
