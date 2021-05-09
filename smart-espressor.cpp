@@ -325,10 +325,10 @@ private:
                     response.send(Http::Code::No_Content, "No details available. Enter a correct quantity of water!");
                 }
             } else {
-                response.send(Http::Code::Bad_Request, "You must enter the amount of water! (amountWater)");
+                response.send(Http::Code::Bad_Request, "You must enter the 'amountWater' field and the amount of water! (amountWater)");
             }
         } else {
-            response.send(Http::Code::No_Content, "You must enter the amount of water! (amountWater) ");
+            response.send(Http::Code::No_Content, "'amountWater' is required! ");
         }
     }
 
@@ -393,11 +393,11 @@ private:
 
             } else {
                 response.send(Http::Code::Bad_Request,
-                              "You must enter the property for which you want to refill, or 'all' if you want to refill all properties");
+                              "You must enter the 'refill' field and the property for which you want to refill, or 'all' if you want to refill all properties!");
             }
         } else {
             response.send(Http::Code::No_Content,
-                          "'refill' field is required");
+                          "'refill' field is required!");
         }
     }
 
@@ -769,7 +769,6 @@ private:
             std::vector<std::string> response;
             int time = 0;
             int unit = 2;
-            // Atentie !!! trebuie scazuta cantitatea de apa
             if(amountWater % 100 == 0) {
                 time = unit * (amountWater/100);
             } else {

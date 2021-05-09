@@ -1,0 +1,36 @@
+{
+  "output-buffers":{
+    "1": {
+      "token-delimitators": "",
+      "protocol": "HTTP",
+      "prefix": "curl -X POST -H \"Content-Type: application/json\" \\\n  -d '{\"key\": \"value\"}' \\\n 'http://127.0.0.1:8080/'",
+      //Correct JSON will be: {"amountWater":200}
+      "buffer-tokens":[
+        {
+          "name":"Espressor boilWater",
+          "description":"Displays how long it takes to heat the water",
+          "token-type":"string",
+          "byte-size":10,
+          "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [boilWater]
+          "optional": false
+        }
+      ]
+    },
+    "2": {
+      "token-delimitators": "",
+      "protocol": "HTTP",
+      "prefix": "curl -X POST -H \"Content-Type: application/json\" \\\n  -d '{\"key\": \"value\"}' \\\n 'http://127.0.0.1:8080/'",
+      //Correct JSON will be:{"refill":"all"} or {"refill":"water"} or {"refill":"milk"} or {"refill":"coffee"} or {"refill":"filters_usage"}
+      "buffer-tokens":[
+        {
+          "name":"Espressor refill",
+          "description":"Refill water, milk, coffee, filters_usage or all",
+          "token-type":"string",
+          "byte-size":10,
+          "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [refill]
+          "optional": false
+        }
+      ]
+    }
+  }
+}
