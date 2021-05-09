@@ -151,18 +151,16 @@ private:
             // there was a property parameter given
             if (espressorDetails.size() == 1) {
                 e = {
-                        {"1", "Espressor's " + property + ":"},
                         {property, espressorDetails[0]}
                 };
             }
                 // else show all the current quantities
             else {
                 e = {
-                        {"1", "Espressor current quantities:"},
                         {"water", espressorDetails[0]},
                         {"milk", espressorDetails[1]},
                         {"coffee", espressorDetails[2]},
-                        {"filters_usage_rate", espressorDetails[3]}
+                        {"filtersUsage", espressorDetails[3]}
                 };
             }
 
@@ -209,14 +207,12 @@ private:
             // valid property parameter given
             if (coffeeDetails.size() == 1) {
                 c = {
-                        {"1", "The quantity of " + property + " needed for " + coffeeName + " is:"},
                         {property, coffeeDetails[0]}
                 };
             }
                 // no property -> return them all
             else {
                 c = {
-                        {"1", "The quantities needed for " + coffeeName + " are:"},
                         {"water", coffeeDetails[0]},
                         {"milk", coffeeDetails[1]},
                         {"coffee", coffeeDetails[2]},
@@ -690,7 +686,7 @@ private:
                     } else if (propertyName == "coffee") {
                         coffee = espressor_details.current_coffee.quant;
                         response.emplace_back(std::to_string(coffee));
-                    } else if (propertyName == "filters_usage") {
+                    } else if (propertyName == "filtersUsage") {
                         filters = round(espressor_details.filters_usage.quant);
                         response.emplace_back(std::to_string(filters));
                     } else {

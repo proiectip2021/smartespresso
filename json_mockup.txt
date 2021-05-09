@@ -1,35 +1,8 @@
--> details/espressor:
-{
-    "property": "water/coffee/filters/etc"
-}
-sau BODY GOL (va afisa toate cantitatile curente)
-
------------------------------------------------------
--> details/coffee/:coffeeName
-{
-    "property": "water/milk/coffee/time"
-}
-sau BODY GOL (va afisa toate cantitatile necesare cafelei dorite)
-
------------------------------------------------------
--> details:
-{
-    "about": "espressor/coffee",
-    "coffeName": "black_cofee/cappuccino/etc",
-    "property": "properties for espressor/coffee"
-}
-
-1. about == espressor: BODY GOL sau la fel ca la 'details/espressor'
-2. about == coffee: trebuie NEAPARAT sa contina cheia "coffeeName"
-                    "property" este optional
-
------------------------------------------------------
-
 ->boilWater
 {
     "amountWater": 300 //trebuie neapart acest camp
 }
-
+------------------------------------------------------------------------
 ->refill
 {
     "refill":"all" // You must enter the property for which you want to refill, or 'all' if you want to refill all properties
