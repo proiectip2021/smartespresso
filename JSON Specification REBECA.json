@@ -1,0 +1,74 @@
+{
+  "output-buffers":{
+    "1":{
+      "token-delimitators": "",
+      "protocol": "HTTP",
+      "prefix": "curl -XGET 'http://127.0.0.1:8080/'",
+      "buffer-tokens":[
+        {
+          "name":"Espressor details",
+          "description":"",
+          "token-type":"string",
+          "byte-size":10,
+          "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [details]
+          "optional": false
+        },
+        {
+          "name":"Espressor details 'about' parameter v1: quantities",
+          "description": "Want details about current espressor quantities",
+          "token-type":"string",
+          "byte-size":10,
+          "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [quantities]
+          "optional": false
+        },
+        {
+          "name":"Parameter for quantity name",
+          "description": "Name of the quantity you want details about",
+          "token-type":"string",
+          "byte-size":10,
+          "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [water, milk, coffee, filtersUsage]
+          "optional": true
+        }
+      ]
+    },
+    "2":{
+      "token-delimitators": "",
+      "protocol": "HTTP",
+      "prefix": "curl -XGET 'http://127.0.0.1:8080/'",
+      "buffer-tokens":[
+        {
+          "name":"Espressor details",
+          "description":"",
+          "token-type":"string",
+          "byte-size":10,
+          "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [details]
+          "optional": false
+        },
+        {
+          "name":"Espressor details 'about' parameter v2: coffee",
+          "description": "Want to know details about ingredients of one explicit coffee",
+          "token-type":"string",
+          "byte-size":10,
+          "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [coffee]
+          "optional": false
+        },
+        {
+          "name":"Parameter for coffee name",
+          "description": "Choose the type of coffee you want details about",
+          "token-type":"string",
+          "byte-size":10,
+          "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [black_coffee, capuccino, flat_white, espresso]
+          "optional": true
+        },
+        {
+          "name":"Parameter for one explicit ingredient",
+          "description": "Name of the ingredient you want necessary quantity",
+          "token-type":"string",
+          "byte-size":10,
+          "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [water, milk, coffee]
+          "optional": true
+        }
+      ]
+    }
+  }
+}
