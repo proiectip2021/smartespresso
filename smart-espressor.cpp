@@ -594,27 +594,54 @@ private:
         std::vector<std::string> defCoffee;
         defCoffee = esp.getDefaultCoffee(); //milk water coffee
 
-        Guard guard(EspressorLock);
+        double coffee = std::stod(defCoffee[3]);
+        double water = std::stod(defCoffee[2]);
+        double milk = std::stod(defCoffee[1]);
 
-        // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
-        using namespace Http;
-        response.headers()
-                .add<Header::Server>("pistache/0.1")
-                .add<Header::ContentType>(MIME(Application, Json));
+        std::vector<double> verifyCoffee = esp.verifyQuantity("coffee", coffee);
+        std::vector<double> verifyWater = esp.verifyQuantity("water", water);
+        std::vector<double> verifyMilk = esp.verifyQuantity("milk", milk);
 
-        json j = {
-                {"defaultCoffee_name", defCoffee[0]},
-                {"defaultCoffee_water", defCoffee[1]},
-                {"defaultCoffee_milk", defCoffee[2]},
-                {"defaultCoffee_coffee", defCoffee[3]}
-        };
+        if(verifyCoffee[0] == 1 && verifyMilk[0] == 1 && verifyWater[0] == 1) {
+            esp.setDecrease("coffee", verifyCoffee[1]);
+            esp.setDecrease("water", verifyWater[1]);
+            esp.setDecrease("milk", verifyMilk[1]);
+            Guard guard(EspressorLock);
 
-        std::string s = j.dump();
-        //Getting the current time to see how many coffees were made today
-        time_t now = time(0);
-        //Adds a coffee made to the counter
-        esp.count_coffee(now);
-        response.send(Http::Code::Ok, s);
+            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+            using namespace Http;
+            response.headers()
+                    .add<Header::Server>("pistache/0.1")
+                    .add<Header::ContentType>(MIME(Application, Json));
+
+            json j = {
+                    {"defaultCoffee_name", defCoffee[0]},
+                    {"defaultCoffee_water", defCoffee[1]},
+                    {"defaultCoffee_milk", defCoffee[2]},
+                    {"defaultCoffee_coffee", defCoffee[3]}
+            };
+
+            std::string s = j.dump();
+            //Getting the current time to see how many coffees were made today
+            time_t now = time(0);
+            //Adds a coffee made to the counter
+            esp.count_coffee(now);
+            response.send(Http::Code::Ok, s);
+        } else if(verifyCoffee[0] == 0 && verifyMilk[0] == 1 && verifyWater[0] == 1) {
+            response.send(Http::Code::Bad_Request, "Not enough coffee.");
+        } else if(verifyCoffee[0] == 1 && verifyMilk[0] == 0 && verifyWater[0] == 1) {
+            response.send(Http::Code::Bad_Request, "Not enough milk.");
+        } else if(verifyCoffee[0] == 1 && verifyMilk[0] == 1 && verifyWater[0] == 0) {
+            response.send(Http::Code::Bad_Request, "Not enough water.");
+        } else if(verifyCoffee[0] == 0 && verifyMilk[0] == 0 && verifyWater[0] == 1) {
+            response.send(Http::Code::Bad_Request, "Not enough coffee and milk.");
+        } else if(verifyCoffee[0] == 0 && verifyMilk[0] == 1 && verifyWater[0] == 0) {
+            response.send(Http::Code::Bad_Request, "Not enough coffee and water.");
+        } else if(verifyCoffee[0] == 1 && verifyMilk[0] == 0 && verifyWater[0] == 0) {
+            response.send(Http::Code::Bad_Request, "Not enough milk and water.");
+        } else if(verifyCoffee[0] == 0 && verifyMilk[0] == 0 && verifyWater[0] == 0) {
+            response.send(Http::Code::Bad_Request, "Not enough coffee, milk and water.");
+        }
     }
 
 
