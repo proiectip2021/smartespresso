@@ -1,0 +1,170 @@
+{
+    "input-buffers":{
+        "1":{
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": "curl -XGET 'http://127.0.0.1:9080/'",
+            "buffer-tokens":[
+                {
+                    "name":"Espressor alarm",
+                    "description":"",
+                    "token-type":"string", 
+                    "byte-size":10, 
+                    "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [alarm]
+                    "optional": false
+                },
+                {
+                    "name":"Espressor alarm default coffee",
+                    "description":"Show the default coffee for alarm",
+                    "token-type":"string", 
+                    "byte-size":10, 
+                    "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [defaultCoffee]
+                    "optional": false
+                }
+
+            ]
+        },
+        "2":{
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": "curl -XPOST 'http://127.0.0.1:9080/'",
+            "buffer-tokens":[
+                {
+                    "name":"Espressor alarm",
+                    "description":"Prepare default coffee",
+                    "token-type":"string",
+                    "byte-size":10,
+                    "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [prepareAlarm]
+                    "optional": false
+                }
+            ]
+        },
+        "3":{
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": "curl -d '{\"name\":\"value1\", \"milk\":\"value2\", \"water\":\"value3\", \"coffee\":\"value4\"}' -H \"Content-Type: application/json\" -X POST 'http://127.0.0.1:9080/'",
+            "buffer-tokens":[
+                {
+                    "name":"Espressor alarm",
+                    "description":"",
+                    "token-type":"string",
+                    "byte-size":10,
+                    "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [alarm, options]
+                    "optional": false
+                },
+                {
+                    "name":"Espressor alarm set default coffee",
+                    "description":"Set the default coffee",
+                    "token-type":"string",
+                    "byte-size":10,
+                    "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [defaultCoffee]
+                    "optional": true
+                }
+            ]
+        },
+        "4": {
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": "curl -X POST -H \"Content-Type: application/json\" \\\n  -d '{\"amountWater\": \"value\"}' \\\n 'http://127.0.0.1:9080/'",
+            //Correct JSON will be: {"amountWater":200}
+            "buffer-tokens":[
+              {
+                "name":"Espressor boilWater",
+                "description":"Displays how long it takes to heat the water",
+                "token-type":"string",
+                "byte-size":10,
+                "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [boilWater]
+                "optional": false
+              }
+            ]
+          },
+          "5": {
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": "curl -X POST -H \"Content-Type: application/json\" \\\n  -d '{\"refill\": \"value\"}' \\\n 'http://127.0.0.1:9080/'",
+            //Correct JSON will be:{"refill":"all"} or {"refill":"water"} or {"refill":"milk"} or {"refill":"coffee"} or {"refill":"filters_usage"}
+            "buffer-tokens":[
+              {
+                "name":"Espressor refill",
+                "description":"Refill water, milk, coffee, filters_usage or all",
+                "token-type":"string",
+                "byte-size":10,
+                "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [refill]
+                "optional": false
+              }
+            ]
+          }
+    },
+    "output-buffers":{
+        "1":{
+          "token-delimitators": "",
+          "protocol": "HTTP",
+          "prefix": "curl -XGET 'http://127.0.0.1:9080/'",
+          "buffer-tokens":[
+            {
+              "name":"Espressor details",
+              "description":"",
+              "token-type":"string",
+              "byte-size":10,
+              "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [details]
+              "optional": false
+            },
+            {
+              "name":"Espressor details 'about' parameter v1: quantities",
+              "description": "Want details about current espressor quantities",
+              "token-type":"string",
+              "byte-size":10,
+              "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [quantities, stats]
+              "optional": false
+            },
+            {
+              "name":"Parameter for quantity name",
+              "description": "Name of the quantity you want details about",
+              "token-type":"string",
+              "byte-size":10,
+              "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [water, milk, coffee, filtersUsage]
+              "optional": true
+            }
+          ]
+        },
+        "2":{
+          "token-delimitators": "",
+          "protocol": "HTTP",
+          "prefix": "curl -XGET 'http://127.0.0.1:9080/'",
+          "buffer-tokens":[
+            {
+              "name":"Espressor details",
+              "description":"",
+              "token-type":"string",
+              "byte-size":10,
+              "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [details]
+              "optional": false
+            },
+            {
+              "name":"Espressor details 'about' parameter v2: coffee",
+              "description": "Want to know details about ingredients of one explicit coffee",
+              "token-type":"string",
+              "byte-size":10,
+              "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [coffee]
+              "optional": false
+            },
+            {
+              "name":"Parameter for coffee name",
+              "description": "Choose the type of coffee you want details about",
+              "token-type":"string",
+              "byte-size":10,
+              "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [black_coffee, capuccino, flat_white, espresso]
+              "optional": true
+            },
+            {
+              "name":"Parameter for one explicit ingredient",
+              "description": "Name of the ingredient you want necessary quantity",
+              "token-type":"string",
+              "byte-size":10,
+              "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [water, milk, coffee]
+              "optional": true
+            }
+          ]
+        }
+      }
+}

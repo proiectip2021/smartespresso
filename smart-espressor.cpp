@@ -112,7 +112,7 @@ private:
         Routes::Post(router, "/options", Routes::bind(&EspressorEndpoint::chooseCoffee, this));
 
         // Prepare coffee with alarm
-        Routes::Post(router, "/alarm", Routes::bind(&EspressorEndpoint::makeAlarmCoffee, this));
+        Routes::Post(router, "/prepareAlarm", Routes::bind(&EspressorEndpoint::makeAlarmCoffee, this));
         Routes::Get(router, "/alarm/defaultCoffee", Routes::bind(&EspressorEndpoint::showDefaultCoffee, this));
         Routes::Post(router, "/alarm/defaultCoffee", Routes::bind(&EspressorEndpoint::setDefaultCoffee, this));
     }
