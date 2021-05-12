@@ -229,13 +229,10 @@ private:
 
     // Get current espressor quantities function
     void getNumberOfCoffees(const Rest::Request &request, Http::ResponseWriter response) {
-        string property = "coffee counter";
-
-        if (!request.body().empty()) {
-            auto reqBody = json::parse(request.body());
-            property = reqBody.value("property", "nothing");
-        }
+        string property = "number of coffees today";
+        //Getting the current time to see how many coffees were made today
         time_t now = time(0);
+        // If the day has changed, the counter resets
         esp.reset_coffee_counter(now);
         std::vector<std::string> coffeeCount = esp.getEspressor(1, property);
 
@@ -251,18 +248,7 @@ private:
                     .add<Header::Server>("pistache/0.1")
                     .add<Header::ContentType>(MIME(Application, Json));
 
-            json e = {};
-
-            if (coffeeCount.size() == 1) {
-                e = {
-                        {"1",      "Espressor's " + property + ":"},
-                        {property, coffeeCount[0]}
-                };
-            } else {
-                e = {
-                        {"Number coffees made today", coffeeCount[0]}
-                };
-            }
+            json e = {{property, coffeeCount[0]}};
 
             std::string s = e.dump();
             response.send(Http::Code::Ok, s);
@@ -468,7 +454,9 @@ private:
                             {"coffee", chosenCoffee[2]}
                     };
                     std::string s = j.dump();
+                    //Getting the current time to see how many coffees were made today
                     time_t now = time(0);
+                    //Adds a coffee made to the counter
                     esp.count_coffee(now);
                     response.send(Http::Code::Ok, s);
                 } else if(verifyCoffee[0] == 0 && verifyMilk[0] == 1 && verifyWater[0] == 1) {
@@ -622,6 +610,10 @@ private:
         };
 
         std::string s = j.dump();
+        //Getting the current time to see how many coffees were made today
+        time_t now = time(0);
+        //Adds a coffee made to the counter
+        esp.count_coffee(now);
         response.send(Http::Code::Ok, s);
     }
 
@@ -867,48 +859,18 @@ private:
             {
                 return false;
             }
-//            else if (current_day==new_day && current_month==new_month && current_year==new_year)
-//            {
             return true;
-//            }
-//            return false;
         }
 
+//        If the day changed and no coffees were made, sets counter to 0
         void reset_coffee_counter(time_t day){
             if (!same_day(day)) {
                 espressor_details.coffees_today.number_today = 0;
             }
         }
 
+//        Counts the number of coffees were made
         void count_coffee(time_t day){
-//            time_t t = time(NULL);
-//            tm* timePtr = localtime(&day);
-//            int new_month = timePtr->tm_mon;
-//            int new_day = timePtr->tm_mday;
-//            int new_year = timePtr->tm_year+ 1900;
-//            time_t old_day = espressor_details.coffees_today.day;
-//            int nr_coffees = espressor_details.coffees_today.number_today;
-//            tm* currentTime = localtime(&old_day);
-//            int current_month = currentTime->tm_mon;
-//            int current_day = currentTime->tm_mday;
-//            int current_year = currentTime->tm_year+ 1900;
-//            if (current_year!=new_year){
-//                espressor_details.coffees_today.number_today = 1;
-//                espressor_details.coffees_today.day = day;
-//            }
-//            else if(current_year==new_year && current_month!=new_month)
-//            {
-//                espressor_details.coffees_today.number_today = 1;
-//                espressor_details.coffees_today.day = day;
-//            } else if (current_day!=new_day && current_month==new_month && current_year==new_year)
-//            {
-//                espressor_details.coffees_today.number_today = 1;
-//                espressor_details.coffees_today.day = day;
-//            }
-//            else if (current_day==new_day && current_month==new_month && current_year==new_year)
-//            {
-//                espressor_details.coffees_today.number_today += 1;
-//            }
             if (same_day(day))
             {
                 espressor_details.coffees_today.number_today += 1;
