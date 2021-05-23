@@ -4,7 +4,7 @@
  *                         Diaconu Rebeca-Mihaela
  *                         Draghici Mircea
  *                         Nedelcu Mara-Alexandra
- *                         Versin Madalina-Ionela
+ *                         Versin Ionela-Madalina
  *                         Zambitchi Alexandra
  *                         GRUPA 333
  * */
@@ -255,11 +255,11 @@ private:
         }
     }
 
-
+    //Get the time when the amount of water will boil - function
     void boilWater(const Rest::Request &request, Http::ResponseWriter response) {
         int amountWater = 0;
 
-
+        //check if the body is not empty
         if (!request.body().empty()) {
             auto reqBody = json::parse(request.body());
 
@@ -268,9 +268,10 @@ private:
                               "Your request contains unnecessary properties. Check again!");
             }
 
-
+            //if the body contains "amountWater" parameter
             if (reqBody.contains("amountWater")) {
                 for (auto& x : reqBody.items()) {
+                    //check if "amountWater" parameter has a good value (a natural number)
                     if (x.key() == "amountWater") {
                         if(x.value().is_number() != 1)
                             response.send(Http::Code::Bad_Request,  "Amount of water must be a number! ");
@@ -280,9 +281,11 @@ private:
                 amountWater = reqBody.value("amountWater", 0);
 
 
+                //the amount of water must be greater than 0
                 if (amountWater > 0) {
 
-                    std::vector<std::string> waterDetails = esp.getBoilWaterTime(amountWater);
+                    //get the time when the water is ready
+                    std::string waterDetails = esp.getBoilWaterTime(amountWater);
 
                     std::vector<double> verifyWater = esp.verifyQuantity("water", amountWater);
 
@@ -298,7 +301,7 @@ private:
                         json e = {};
 
                         e = {
-                                {"1", "The water will be ready in  " + waterDetails[0] + " minutes!"}
+                                {"Message","The water will be ready in  " + waterDetails + " minutes!"}
                         };
 
                         std::string s = e.dump();
@@ -318,6 +321,7 @@ private:
         }
     }
 
+    //refills for properties - funtion
     void refill(const Rest::Request &request, Http::ResponseWriter response) {
         string refill = "all";
 
@@ -331,6 +335,7 @@ private:
 
             if (reqBody.contains("refill")) {
                 for (auto& x : reqBody.items()) {
+                    //check if "refill" parameter has a good value (a string)
                     if (x.key() == "refill") {
                         if(x.value().is_string() != 1)
                             response.send(Http::Code::Bad_Request,  "You must enter the property for which you want to refill: water, milk, coffee, filters_usage or all!");
@@ -338,8 +343,9 @@ private:
                 }
                 refill = reqBody.value("refill", "all");
 
+                //makes refill
                 esp.setMakeRefill(refill);
-
+                //get details about refill
                 std::vector<std::string> refillDetails = esp.makeRefill(refill);
 
                 if (refillDetails[0] == "property_not_found") {
@@ -358,12 +364,12 @@ private:
 
                     if (refillDetails.size() == 1) {
                         e = {
-                                {"1",    "Espressor's " + refill + " after refill:"},
+                                {"Message",    "Espressor's " + refill + " after refill:"},
                                 {refill, refillDetails[0]}
                         };
                     } else {
                         e = {
-                                {"1",                  "Espressor quantities after refill:"},
+                                {"Message",                  "Espressor quantities after refill:"},
                                 {"water",              refillDetails[0]},
                                 {"milk",               refillDetails[1]},
                                 {"coffee",             refillDetails[2]},
@@ -379,7 +385,7 @@ private:
 
             } else {
                 response.send(Http::Code::Bad_Request,
-                              "You must enter the 'refill' field and the property for which you want to refill, or 'all' if you want to refill all properties!");
+                              "You must enter the 'refill' field and the property for which you want to refill or 'all' if you want to refill all properties!");
             }
         } else {
             response.send(Http::Code::No_Content,
@@ -717,6 +723,7 @@ private:
             return response;
         }
 
+        //Get information about refill
         std::vector<std::string> makeRefill(string refill = "all") {
 
             std::vector<std::string> response;
@@ -760,6 +767,7 @@ private:
             return response;
         }
 
+        //makes refill
         void setMakeRefill(string refill = "all") {
 
             if (refill == "all") {
@@ -784,17 +792,19 @@ private:
 
         }
 
-        std::vector<std::string> getBoilWaterTime(int amountWater) {
-            std::vector<std::string> response;
+        //Get the time when the water is ready
+        std::string getBoilWaterTime(int amountWater) {
+            std::string response;
             int time = 0;
             int unit = 2;
+            // for 100 grams of water it takes 2 minutes to boil
             if(amountWater % 100 == 0) {
                 time = unit * (amountWater/100);
             } else {
                 time = unit * (amountWater/100) + unit;
             }
 
-            response.emplace_back(std::to_string(time));
+            response = std::to_string(time);
             return response;
         }
 
