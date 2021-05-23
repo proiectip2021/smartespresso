@@ -301,7 +301,7 @@ private:
                         json e = {};
 
                         e = {
-                                {"Message","The water will be ready in  " + waterDetails + " minutes!"}
+                                {"message","The water will be ready in  " + waterDetails + " minutes!"}
                         };
 
                         std::string s = e.dump();
@@ -364,12 +364,12 @@ private:
 
                     if (refillDetails.size() == 1) {
                         e = {
-                                {"Message",    "Espressor's " + refill + " after refill:"},
+                                {"message",    "Espressor's " + refill + " after refill:"},
                                 {refill, refillDetails[0]}
                         };
                     } else {
                         e = {
-                                {"Message",                  "Espressor quantities after refill:"},
+                                {"message",                  "Espressor quantities after refill:"},
                                 {"water",              refillDetails[0]},
                                 {"milk",               refillDetails[1]},
                                 {"coffee",             refillDetails[2]},
@@ -622,8 +622,8 @@ private:
 
             json j = {
                     {"defaultCoffee_name", defCoffee[0]},
-                    {"defaultCoffee_water", defCoffee[1]},
-                    {"defaultCoffee_milk", defCoffee[2]},
+                    {"defaultCoffee_water", defCoffee[2]},
+                    {"defaultCoffee_milk", defCoffee[1]},
                     {"defaultCoffee_coffee", defCoffee[3]}
             };
 
