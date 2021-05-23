@@ -429,7 +429,7 @@ private:
             } else if (chosenCoffee[0] == "bad_request") {
                 response.send(Http::Code::Bad_Request, "You can't set water, milk or coffee for " + name + ".");
             } else if (chosenCoffee[0] == "empty_request") {
-                response.send(Http::Code::No_Content, "Ok then! No coffee for you.");
+                response.send(Http::Code::No_Content, "Please enter the name of the coffee or the word your_choice followed by quantities of coffee, milk and water.");
             } else if (chosenCoffee[0] == "no_negatives") {
                 response.send(Http::Code::Bad_Request, "You can't introduce negative values.");
             } else {
