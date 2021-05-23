@@ -3,29 +3,6 @@
         "1": {
             "token-delimitators": "",
             "protocol": "HTTP",
-            "prefix": "curl -XGET 'http://127.0.0.1:9080/'",
-            "buffer-tokens":[
-                {
-                    "name":"Espressor alarm",
-                    "description":"",
-                    "token-type":"string",
-                    "byte-size":10,
-                    "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [alarm]
-                    "optional": false
-                },
-                {
-                    "name":"Espressor alarm default coffee",
-                    "description":"Show the default coffee for alarm",
-                    "token-type":"string",
-                    "byte-size":10,
-                    "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [defaultCoffee]
-                    "optional": false
-                }
-            ]
-        },
-        "2": {
-            "token-delimitators": "",
-            "protocol": "HTTP",
             "prefix": "curl -X POST 'http://127.0.0.1:9080/'",
             "buffer-tokens":[
                 {
@@ -38,7 +15,7 @@
                 }
             ]
         },
-        "3": {
+        "2": {
             "token-delimitators": "",
             "protocol": "HTTP",
             "prefix": "curl -d '{\"name\":\"value1\", \"milk\":\"value2\", \"water\":\"value3\", \"coffee\":\"value4\"}' -H \"Content-Type: application/json\" -X POST 'http://127.0.0.1:9080/'",
@@ -61,7 +38,7 @@
                 }
             ]
         },
-        "4": {
+        "3": {
             "token-delimitators": "",
             "protocol": "HTTP",
             "prefix": "curl -X POST -H \"Content-Type: application/json\" \\\n  -d '{\"amountWater\": \"value\"}' \\\n 'http://127.0.0.1:9080/'",
@@ -77,7 +54,7 @@
                 }
             ]
           },
-        "5": {
+        "4": {
             "token-delimitators": "",
             "protocol": "HTTP",
             "prefix": "curl -X POST -H \"Content-Type: application/json\" \\\n  -d '{\"refill\": \"value\"}' \\\n 'http://127.0.0.1:9080/'",
@@ -166,6 +143,29 @@
                     "regex-rule": "[a-zA-Z]*",
                     // Correct inputs will be: [water, milk, coffee]
                     "optional": true
+                }
+            ]
+        },
+        "3": {
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": "curl -XGET 'http://127.0.0.1:9080/'",
+            "buffer-tokens":[
+                {
+                    "name":"Espressor alarm",
+                    "description":"",
+                    "token-type":"string",
+                    "byte-size":10,
+                    "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [alarm]
+                    "optional": false
+                },
+                {
+                    "name":"Espressor alarm default coffee",
+                    "description":"Show the default coffee for alarm",
+                    "token-type":"string",
+                    "byte-size":10,
+                    "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [defaultCoffee]
+                    "optional": false
                 }
             ]
         }
