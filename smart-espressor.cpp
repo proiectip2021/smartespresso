@@ -227,7 +227,7 @@ private:
     }
 
 
-    // Get current espressor quantities function
+    // Get current number of coffees made function
     void getNumberOfCoffees(const Rest::Request &request, Http::ResponseWriter response) {
         string property = "number of coffees today";
         //Getting the current time to see how many coffees were made today
