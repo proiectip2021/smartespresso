@@ -5,6 +5,8 @@ Coffee O'Clock este o aplicatie software ce simuleaza un espressor inteligent, c
 ## Rulare
 Programul poate fi rulat si compilat atat pe linux, cat si pe windows - in acest caz, a fost urmarit urmatorul [tutorial](https://www.jetbrains.com/help/clion/how-to-use-wsl-development-environment-in-product.html#wsl-tooclhain).
 
+De asemenea, am instalat libraria [nlohmann](https://github.com/nlohmann/json) pentru utilizarea structurilor de tip json pentru response.
+
 Pentru testarea rutelor si a functionalitatilor a fost folosit [Postman](https://www.postman.com/).
 
 ## Documentatie

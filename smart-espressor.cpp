@@ -561,7 +561,7 @@ private:
             bool ok = esp.setDefaultCoffee(name, milk, water, coffee);
 
             if( ok == 1){
-                response.send(Http::Code::Accepted, "Default coffe has been set as " + name + ".");
+                response.send(Http::Code::Accepted, "Default coffee has been set as " + name + ".");
             }
             else{
                 response.send(Http::Code::Not_Found, "Something went wrong!");
@@ -576,7 +576,7 @@ private:
                     .add<Header::ContentType>(MIME(Application, Json));
 
             json j = {
-                    {"newDefaultCoffe", name},
+                    {"newDefaultCoffee", name},
                     {"defaultCoffee_milk", milk},
                     {"defaultCoffee_water", water},
                     {"defaultCoffee_coffee", coffee}
@@ -922,7 +922,7 @@ private:
         // Getter for chosenCoffee route
         std::vector<std::string> getChosenCoffee(string name, double milk, double water, double coffee) {
             std::vector<std::string> response;
-            if (name != "your_choice" && name != "back_coffee" && name != "espresso" && name != "flat_white" && name != "cappuccino") {
+            if (name != "your_choice" && name != "black_coffee" && name != "espresso" && name != "flat_white" && name != "cappuccino") {
                 response.emplace_back("not_found");
             } else {
                 if (milk < 0 || water < 0 || coffee < 0) {
